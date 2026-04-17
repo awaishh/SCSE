@@ -49,6 +49,22 @@ async function _goLive(matchId, roomId, io) {
     startTime: match.startTime,
   });
 
+  // Initialise replay document and record the match_start event.
+  // Dynamic import avoids a circular dependency with replay.service.
+  try {
+    const { initReplay, recordEvent } = await import("./replay.service.js");
+    await initReplay(match._id.toString());
+    await recordEvent(
+      match._id.toString(),
+      "match_start",
+      null,
+      { gameMode: match.gameMode },
+      match.startTime
+    );
+  } catch (e) {
+    console.error("[replay] init failed:", e);
+  }
+
   // Start inactivity elimination timer for BATTLE_ROYALE matches.
   // Dynamic import avoids a circular dependency (elimination.service imports endMatch).
   if (match.gameMode === "BATTLE_ROYALE") {
@@ -219,6 +235,29 @@ export const endMatch = async (matchId, io) => {
   } catch (ratingErr) {
     // Rating update failure must not break match end flow
     console.error('[endMatch] Rating update failed:', ratingErr);
+  }
+
+  // Record the match_end event and finalize the replay.
+  // Dynamic import avoids a circular dependency with replay.service.
+  try {
+    const { finalizeReplay, recordEvent } = await import("./replay.service.js");
+    await recordEvent(
+      matchId,
+      "match_end",
+      null,
+      { winnerIds, finalScoreboard },
+      match.startTime
+    );
+    const replay = await finalizeReplay(matchId, finalScoreboard);
+    // Notify clients that the replay is ready to watch
+    if (replay) {
+      io.to(match.roomId.toString()).emit("replay:ready", {
+        matchId,
+        replayId: replay._id,
+      });
+    }
+  } catch (e) {
+    console.error("[replay] finalize failed:", e);
   }
 
   io.to(match.roomId.toString()).emit("match:finished", {

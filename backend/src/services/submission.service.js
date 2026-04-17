@@ -99,6 +99,29 @@ export const submit = async (matchId, userId, problemId, language, sourceCode, i
     await playerState.save();
   }
 
+  // Record this submission as a replay event.
+  // Wrapped in try/catch — replay recording must never crash the submission flow.
+  try {
+    const { recordEvent } = await import("./replay.service.js");
+    const matchDoc = await Match.findById(matchId);
+    if (matchDoc?.startTime) {
+      await recordEvent(
+        matchId,
+        "submission",
+        userId,
+        {
+          problemId,
+          language,
+          verdict: result.verdict,
+          stage: playerState.currentStage,
+        },
+        matchDoc.startTime
+      );
+    }
+  } catch (e) {
+    /* replay recording must never crash submission */
+  }
+
   // 10. Send verdict back to the submitting player's private channel
   io.to(userId.toString()).emit("submission:result", {
     submissionId: submission._id,
