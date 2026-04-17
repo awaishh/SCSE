@@ -1,33 +1,70 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&display=swap');
 
 @theme {
-  --font-sans: "Inter", "Segoe UI", Roboto, sans-serif;
+  --color-primary: #6D28D9;
+  --color-background-light: #FFFFFF;
+  --color-background-dark: #0f172a;
+  --color-prose-charcoal: #1e1b4b;
+  --color-prose-gray: #64748b;
+  --font-display: "Inter", sans-serif;
+  --font-serif: "Newsreader", serif;
 }
 
-:root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+* { box-sizing: border-box; }
 
 body {
   margin: 0;
-  min-width: 320px;
   min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #ffffff;
+  color: #1e1b4b;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
+.serif-heading {
+  font-family: 'Newsreader', serif;
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Bottom-border only input style */
+.input-underline {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(30, 27, 75, 0.1);
+  outline: none;
+  padding: 12px 0;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  color: #1e1b4b;
+  transition: border-color 0.2s;
+}
+
+.input-underline::placeholder {
+  color: rgba(100, 116, 139, 0.4);
+}
+
+.input-underline:focus {
+  border-bottom-color: #6D28D9;
+}
+
+.input-underline.error {
+  border-bottom-color: #ef4444;
 }

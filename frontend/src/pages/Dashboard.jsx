@@ -1,95 +1,119 @@
 import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { Link } from "react-router-dom";
-import Button from "../components/UI/Button";
+import { useGuild } from "../context/GuildContext";
+
+const StatCard = ({ label, value }) => (
+  <div className="border-b border-[#1e1b4b]/5 pb-4">
+    <p className="text-[10px] uppercase tracking-[0.2em] text-[#64748b] mb-1 font-semibold">{label}</p>
+    <p className="text-lg font-semibold text-[#1e1b4b]">{value}</p>
+  </div>
+);
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
 
   const handleLogout = async () => {
     setLoggingOut(true);
     await logout();
+    navigate("/login");
   };
 
   return (
-    <div className="min-h-screen w-full bg-gray-950 text-white">
-      {/* Navbar */}
-      <nav className="bg-gray-900 border-b border-gray-800 px-6 py-4 flex justify-between items-center">
-        <span className="text-xl font-bold text-white">⚔️ Battle Arena</span>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-400 hidden sm:block">
-            Welcome, <span className="font-semibold text-white">{user?.name || "Player"}</span>
+    <div className="min-h-screen bg-white text-[#1e1b4b]">
+
+      {/* ── Navbar ── */}
+      <nav className="border-b border-[#1e1b4b]/5 px-8 py-5 flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <span className="material-symbols-outlined text-[#6D28D9] text-2xl">auto_stories</span>
+          <span className="font-bold tracking-tight text-base uppercase">Battle Arena</span>
+        </div>
+        <div className="flex items-center gap-6">
+          <span className="text-[11px] uppercase tracking-[0.15em] text-[#64748b] hidden sm:block">
+            {user?.name || "Player"}
           </span>
-          <Button
-            variant="danger"
-            className="w-auto py-1.5 px-4 text-sm"
-            loading={loggingOut}
+          <button
             onClick={handleLogout}
+            disabled={loggingOut}
+            className="text-[10px] uppercase tracking-[0.2em] text-[#64748b] hover:text-[#6D28D9] transition-colors font-semibold disabled:opacity-50"
           >
-            Logout
-          </Button>
+            {loggingOut ? "Leaving..." : "Logout"}
+          </button>
         </div>
       </nav>
 
-      {/* Main content */}
-      <main className="max-w-3xl mx-auto p-6 space-y-6">
+      {/* ── Content ── */}
+      <main className="max-w-3xl mx-auto px-8 py-16 space-y-12">
 
-        {/* Profile card */}
-        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-6">
-          <h2 className="text-lg font-bold mb-4 text-gray-200">Your Profile</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Name</p>
-              <p className="text-white font-medium">{user?.name || "—"}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Email</p>
-              <p className="text-white font-medium">{user?.email || "—"}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Rating</p>
-              <p className="text-white font-medium">{user?.rating ?? 1000}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Matches Played</p>
-              <p className="text-white font-medium">{user?.matchCount ?? 0}</p>
-            </div>
-          </div>
+        {/* Welcome */}
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.2em] text-[#64748b] mb-2">Welcome back</p>
+          <h1 className="serif-heading text-5xl font-bold leading-tight text-[#1e1b4b]">
+            {user?.name || "Player"}
+          </h1>
         </div>
 
-        {/* Security card */}
-        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-6">
-          <h2 className="text-lg font-bold mb-4 text-gray-200">Security</h2>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-white font-medium">Two-Factor Authentication</p>
-              <p className="text-sm text-gray-400 mt-0.5">
-                {user?.isTwoFactorEnabled
-                  ? "Your account is protected with 2FA."
-                  : "Add an extra layer of security to your account."}
-              </p>
-            </div>
-            {user?.isTwoFactorEnabled ? (
-              <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs font-bold rounded-full border border-green-500/30">
-                ENABLED
-              </span>
-            ) : (
-              <Link to="/setup-2fa">
-                <Button variant="primary" className="w-auto px-4 py-2 text-sm">
-                  Enable 2FA
-                </Button>
-              </Link>
-            )}
-          </div>
+        {/* Stats grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          <StatCard label="Rating" value={user?.rating ?? 1000} />
+          <StatCard label="Matches" value={user?.matchCount ?? 0} />
+          <StatCard label="Rank Tier" value="Silver" />
+          <StatCard label="Guild" value={user?.guildId ? "Joined" : "None"} />
         </div>
 
-        {/* Session info */}
-        <div className="bg-blue-950/40 rounded-2xl border border-blue-800/30 p-6">
-          <h2 className="text-sm font-bold text-blue-300 mb-2">Session Info</h2>
-          <p className="text-sm text-blue-400">
-            Authenticated via JWT. Access tokens expire in 15 minutes and are refreshed automatically via HTTP-only cookies.
+        {/* Profile */}
+        <div className="border-t border-[#1e1b4b]/5 pt-10">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-[#64748b] mb-6 font-semibold">
+            Account Details
           </p>
+          <div className="space-y-5">
+            <div className="flex justify-between items-center border-b border-[#1e1b4b]/5 pb-4">
+              <span className="text-[11px] uppercase tracking-[0.15em] text-[#64748b]">Email</span>
+              <span className="text-sm font-medium">{user?.email || "—"}</span>
+            </div>
+            <div className="flex justify-between items-center border-b border-[#1e1b4b]/5 pb-4">
+              <span className="text-[11px] uppercase tracking-[0.15em] text-[#64748b]">Two-Factor Auth</span>
+              {user?.isTwoFactorEnabled ? (
+                <span className="text-[10px] uppercase tracking-[0.15em] text-green-600 font-bold">Enabled</span>
+              ) : (
+                <Link
+                  to="/setup-2fa"
+                  className="text-[10px] uppercase tracking-[0.15em] text-[#6D28D9] font-bold hover:opacity-70 transition-opacity"
+                >
+                  Enable →
+                </Link>
+              )}
+            </div>
+            <div className="flex justify-between items-center border-b border-[#1e1b4b]/5 pb-4">
+              <span className="text-[11px] uppercase tracking-[0.15em] text-[#64748b]">Auth Method</span>
+              <span className="text-sm font-medium">
+                {user?.googleId ? "Google" : user?.githubId ? "GitHub" : "Email"}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Coming soon */}
+        <div className="border border-[#1e1b4b]/5 rounded-sm p-8">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-[#64748b] mb-3 font-semibold">
+            Quick Actions
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              to="/lobby"
+              className="px-5 py-2.5 bg-[#111827] text-white text-sm font-semibold rounded-lg hover:bg-gray-800 transition-colors"
+            >
+              Play Now
+            </Link>
+            <Link
+              to="/guild"
+              className="px-5 py-2.5 border border-[#1e1b4b]/10 text-sm font-semibold rounded-lg hover:border-[#6D28D9] hover:text-[#6D28D9] transition-colors"
+            >
+              Guilds
+            </Link>
+          </div>
         </div>
       </main>
     </div>

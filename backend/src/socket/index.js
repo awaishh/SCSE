@@ -16,9 +16,17 @@ export const initSocket = (server) => {
   });
 
   // --- JWT authentication middleware ---
-  // Runs before every connection is established.
+  // Reads token from handshake auth OR from the accessToken cookie (HttpOnly).
   io.use((socket, next) => {
-    const token = socket.handshake.auth?.token;
+    // Try auth token first, then fall back to cookie
+    let token = socket.handshake.auth?.token;
+
+    if (!token) {
+      // Parse cookies from handshake headers
+      const cookieHeader = socket.handshake.headers?.cookie || "";
+      const match = cookieHeader.match(/(?:^|;\s*)accessToken=([^;]+)/);
+      token = match ? match[1] : null;
+    }
 
     if (!token) {
       return next(new Error("Authentication error"));
@@ -26,7 +34,7 @@ export const initSocket = (server) => {
 
     try {
       const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-      socket.user = decoded; // attach decoded payload to socket
+      socket.user = decoded;
       next();
     } catch {
       next(new Error("Authentication error"));

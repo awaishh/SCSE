@@ -4,8 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import Input from "../components/UI/Input";
-import Button from "../components/UI/Button";
+import AuthLayout from "../components/auth/AuthLayout";
 import OAuthButtons from "../components/auth/OAuthButtons";
 import toast from "react-hot-toast";
 
@@ -18,7 +17,6 @@ const Login = () => {
   const { login, verify2FALogin } = useAuth();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // 2FA step state
   const [requires2FA, setRequires2FA] = useState(false);
   const [twoFACode, setTwoFACode] = useState("");
   const [pendingCredentials, setPendingCredentials] = useState(null);
@@ -31,14 +29,13 @@ const Login = () => {
     setIsSubmitting(true);
     try {
       const result = await login(data);
-      // If backend signals 2FA required
       if (result?.requires2FA) {
         setPendingCredentials(data);
         setRequires2FA(true);
       } else {
         navigate("/dashboard");
       }
-    } catch (error) {
+    } catch {
       // handled by toast in context
     } finally {
       setIsSubmitting(false);
@@ -52,7 +49,7 @@ const Login = () => {
     try {
       await verify2FALogin({ ...pendingCredentials, code: twoFACode });
       navigate("/dashboard");
-    } catch (error) {
+    } catch {
       // handled by toast in context
     } finally {
       setIsSubmitting(false);
@@ -60,85 +57,172 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-950 px-4">
-      <div className="w-full max-w-md bg-gray-900 rounded-2xl shadow-2xl p-8 border border-gray-800">
+    <AuthLayout>
+      {!requires2FA ? (
+        <>
+          {/* Header */}
+          <div className="mb-10">
+            <h2 className="text-3xl font-bold text-[#0f172a] tracking-tight">
+              Welcome back
+            </h2>
+            <p className="text-[#64748b] text-sm mt-2">
+              Sign in to your Battle Arena account
+            </p>
+          </div>
 
-        {!requires2FA ? (
-          <>
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-white">Welcome Back</h1>
-              <p className="text-gray-400 mt-2 text-sm">Sign in to your account</p>
-            </div>
+          {/* Form */}
+          <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
 
-            <form onSubmit={handleSubmit(onSubmit)} noValidate>
-              <Input
-                label="Email Address"
+            {/* Email */}
+            <div>
+              <label className="block text-xs font-semibold text-[#374151] mb-1.5 uppercase tracking-wide">
+                Email Address
+              </label>
+              <input
                 type="email"
-                placeholder="john@example.com"
-                error={errors.email}
+                placeholder="you@example.com"
+                className={`w-full px-4 py-3 rounded-lg border-2 text-sm text-[#0f172a] placeholder-[#9ca3af] bg-white outline-none transition-all duration-200
+                  ${errors.email
+                    ? "border-red-400 focus:border-red-500"
+                    : "border-[#e2e8f0] focus:border-[#6D28D9]"
+                  }`}
                 {...register("email")}
               />
-              <Input
-                label="Password"
-                type="password"
-                placeholder="••••••••"
-                error={errors.password}
-                {...register("password")}
-              />
+              {errors.email && (
+                <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1">
+                  <span>⚠</span> {errors.email.message}
+                </p>
+              )}
+            </div>
 
-              <div className="flex justify-end mb-4">
-                <Link to="/forgot-password" className="text-sm text-blue-400 hover:text-blue-300">
+            {/* Password */}
+            <div>
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="block text-xs font-semibold text-[#374151] uppercase tracking-wide">
+                  Password
+                </label>
+                <Link
+                  to="/forgot-password"
+                  className="text-xs text-[#6D28D9] hover:text-[#5b21b6] font-medium transition-colors"
+                >
                   Forgot password?
                 </Link>
               </div>
-
-              <Button type="submit" loading={isSubmitting}>
-                Sign In
-              </Button>
-            </form>
-
-            <OAuthButtons />
-
-            <p className="text-center mt-6 text-sm text-gray-500">
-              Don't have an account?{" "}
-              <Link to="/register" className="text-blue-400 hover:text-blue-300 font-semibold">
-                Create one
-              </Link>
-            </p>
-          </>
-        ) : (
-          <>
-            <div className="text-center mb-8">
-              <div className="w-14 h-14 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl">🔐</span>
-              </div>
-              <h1 className="text-2xl font-bold text-white">Two-Factor Auth</h1>
-              <p className="text-gray-400 mt-2 text-sm">Enter the 6-digit code from your authenticator app</p>
+              <input
+                type="password"
+                placeholder="••••••••"
+                className={`w-full px-4 py-3 rounded-lg border-2 text-sm text-[#0f172a] placeholder-[#9ca3af] bg-white outline-none transition-all duration-200
+                  ${errors.password
+                    ? "border-red-400 focus:border-red-500"
+                    : "border-[#e2e8f0] focus:border-[#6D28D9]"
+                  }`}
+                {...register("password")}
+              />
+              {errors.password && (
+                <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1">
+                  <span>⚠</span> {errors.password.message}
+                </p>
+              )}
             </div>
 
-            <form onSubmit={handle2FASubmit}>
-              <Input
-                label="Authentication Code"
-                placeholder="000000"
+            {/* Submit */}
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-[#6D28D9] hover:bg-[#5b21b6] active:bg-[#4c1d95] disabled:opacity-60 disabled:cursor-not-allowed text-white py-3.5 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-[#6D28D9]/25"
+              >
+                {isSubmitting ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  "Sign In"
+                )}
+              </button>
+            </div>
+          </form>
+
+          <OAuthButtons />
+
+          <p className="text-center mt-6 text-sm text-[#64748b]">
+            Don't have an account?{" "}
+            <Link
+              to="/register"
+              className="text-[#6D28D9] hover:text-[#5b21b6] font-semibold transition-colors"
+            >
+              Create one
+            </Link>
+          </p>
+
+          {/* Footer links */}
+          <div className="mt-12 flex justify-center gap-5">
+            {["Privacy", "Terms", "About"].map((item) => (
+              <a
+                key={item}
+                href="#"
+                className="text-[11px] text-[#94a3b8] hover:text-[#64748b] transition-colors"
+              >
+                {item}
+              </a>
+            ))}
+          </div>
+        </>
+      ) : (
+        /* ── 2FA Step ── */
+        <>
+          <div className="mb-10">
+            <div className="w-12 h-12 bg-[#6D28D9]/10 rounded-xl flex items-center justify-center mb-5">
+              <span className="material-symbols-outlined text-[#6D28D9] text-2xl">lock</span>
+            </div>
+            <h2 className="text-3xl font-bold text-[#0f172a] tracking-tight">
+              Two-factor auth
+            </h2>
+            <p className="text-[#64748b] text-sm mt-2">
+              Enter the 6-digit code from your authenticator app
+            </p>
+          </div>
+
+          <form onSubmit={handle2FASubmit} className="space-y-5">
+            <div>
+              <label className="block text-xs font-semibold text-[#374151] mb-1.5 uppercase tracking-wide">
+                Authentication Code
+              </label>
+              <input
+                type="text"
+                placeholder="000 000"
                 maxLength={6}
                 value={twoFACode}
                 onChange={(e) => setTwoFACode(e.target.value.replace(/\D/g, ""))}
+                className="w-full px-4 py-3 rounded-lg border-2 border-[#e2e8f0] focus:border-[#6D28D9] text-center text-2xl font-bold tracking-[0.4em] text-[#0f172a] bg-white outline-none transition-all duration-200"
               />
-              <Button type="submit" loading={isSubmitting}>
-                Verify & Sign In
-              </Button>
-            </form>
+            </div>
 
-            <button
-              onClick={() => { setRequires2FA(false); setTwoFACode(""); }}
-              className="w-full text-center mt-4 text-sm text-gray-500 hover:text-gray-300"
-            >
-              ← Back to login
-            </button>
-          </>
-        )}
-      </div>
-    </div>
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-[#6D28D9] hover:bg-[#5b21b6] disabled:opacity-60 disabled:cursor-not-allowed text-white py-3.5 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-[#6D28D9]/25"
+              >
+                {isSubmitting ? (
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  "Verify & Sign In"
+                )}
+              </button>
+            </div>
+          </form>
+
+          <button
+            onClick={() => { setRequires2FA(false); setTwoFACode(""); }}
+            className="w-full text-center mt-5 text-sm text-[#64748b] hover:text-[#0f172a] transition-colors"
+          >
+            ← Back to login
+          </button>
+        </>
+      )}
+    </AuthLayout>
   );
 };
 
