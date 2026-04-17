@@ -58,8 +58,76 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const setup2FA = async () => {
+    try {
+      const { data: apiResponse } = await API.post("/setup-2fa");
+      return apiResponse.data;
+    } catch (error) {
+      toast.error(error.response?.data?.message || "2FA setup failed");
+      throw error;
+    }
+  };
+
+  const verify2FA = async (code) => {
+    try {
+      const { data: apiResponse } = await API.post("/verify-2fa", { code });
+      setUser((prev) => ({ ...prev, isTwoFactorEnabled: true }));
+      toast.success("2FA enabled successfully");
+      return apiResponse.data;
+    } catch (error) {
+      toast.error(error.response?.data?.message || "2FA verification failed");
+      throw error;
+    }
+  };
+
+  const forgotPassword = async (email) => {
+    try {
+      const { data: apiResponse } = await API.post("/forgot-password", { email });
+      toast.success(apiResponse.message);
+      return apiResponse.data;
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Request failed");
+      throw error;
+    }
+  };
+
+  const verifyResetCode = async (email, code) => {
+    try {
+      const { data: apiResponse } = await API.post("/verify-reset-code", { email, code });
+      toast.success("Code verified successfully");
+      return apiResponse.data;
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Invalid code");
+      throw error;
+    }
+  };
+
+  const resetPassword = async (resetToken, newPassword) => {
+    try {
+      const { data: apiResponse } = await API.post("/reset-password", { resetToken, newPassword });
+      toast.success("Password reset successfully");
+      return apiResponse.data;
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Reset failed");
+      throw error;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        register,
+        logout,
+        setup2FA,
+        verify2FA,
+        forgotPassword,
+        verifyResetCode,
+        resetPassword,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

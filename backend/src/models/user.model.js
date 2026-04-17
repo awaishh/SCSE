@@ -37,6 +37,13 @@ const userSchema = new mongoose.Schema(
     avatar: {
       type: String,
     },
+    twoFactorSecret: {
+      type: String,
+    },
+    isTwoFactorEnabled: {
+      type: Boolean,
+      default: false,
+    },
     refreshToken: {
       type: String,
     },
@@ -95,6 +102,20 @@ userSchema.methods.generateRefreshToken = function () {
     process.env.REFRESH_TOKEN_SECRET,
     {
       expiresIn: process.env.REFRESH_TOKEN_EXPIRY,
+    }
+  );
+};
+
+// Generate Reset Password Token (Short-lived)
+userSchema.methods.generateResetPasswordToken = function () {
+  return jwt.sign(
+    {
+      _id: this._id,
+      reset: true,
+    },
+    process.env.RESET_TOKEN_SECRET || "reset_secret",
+    {
+      expiresIn: "10m",
     }
   );
 };

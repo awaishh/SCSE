@@ -3,6 +3,120 @@ import jwt from "jsonwebtoken";
 import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { asyncHandler } from "../utils/async-handler.js";
+import speakeasy from "speakeasy";
+import qrcode from "qrcode";
+
+// ... existing helper functions (generateAccessAndRefereshTokens, cookieOptions) ...
+
+// POST /auth/setup-2fa
+export const setup2FA = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+
+  const secret = speakeasy.generateSecret({
+    name: `SCSE:${user.email}`,
+  });
+
+  user.twoFactorSecret = secret.base32;
+  await user.save({ validateBeforeSave: false });
+
+  const qrCodeDataURL = await qrcode.toDataURL(secret.otpauth_url);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { qrCode: qrCodeDataURL, secret: secret.base32 }, "2FA setup initiated"));
+});
+
+// POST /auth/verify-2fa
+export const verify2FA = asyncHandler(async (req, res) => {
+  const { code } = req.body;
+  const user = await User.findById(req.user._id);
+
+  const verified = speakeasy.totp.verify({
+    secret: user.twoFactorSecret,
+    encoding: "base32",
+    token: code,
+    window: 1,
+  });
+
+  if (!verified) {
+    throw new ApiError(400, "Invalid verification code");
+  }
+
+  user.isTwoFactorEnabled = true;
+  await user.save({ validateBeforeSave: false });
+
+  return res.status(200).json(new ApiResponse(200, {}, "2FA enabled successfully"));
+});
+
+// POST /auth/forgot-password
+export const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  // Generic response to prevent email harvesting
+  const response = new ApiResponse(200, {}, "If an account exists with 2FA enabled, you can proceed with reset.");
+
+  const user = await User.findOne({ email });
+
+  if (!user || !user.isTwoFactorEnabled) {
+    return res.status(200).json(response);
+  }
+
+  return res.status(200).json(response);
+});
+
+// POST /auth/verify-reset-code
+export const verifyResetCode = asyncHandler(async (req, res) => {
+  const { email, code } = req.body;
+
+  const user = await User.findOne({ email });
+
+  if (!user || !user.isTwoFactorEnabled) {
+    throw new ApiError(404, "Invalid request");
+  }
+
+  const verified = speakeasy.totp.verify({
+    secret: user.twoFactorSecret,
+    encoding: "base32",
+    token: code,
+    window: 1,
+  });
+
+  if (!verified) {
+    throw new ApiError(400, "Invalid 2FA code");
+  }
+
+  const resetToken = user.generateResetPasswordToken();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { resetToken }, "Reset code verified. You can now reset your password."));
+});
+
+// POST /auth/reset-password
+export const resetPassword = asyncHandler(async (req, res) => {
+  const { resetToken, newPassword } = req.body;
+
+  if (!resetToken || !newPassword) {
+    throw new ApiError(400, "Reset token and new password are required");
+  }
+
+  try {
+    const decoded = jwt.verify(resetToken, process.env.RESET_TOKEN_SECRET || "reset_secret");
+
+    const user = await User.findById(decoded._id);
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+
+    user.password = newPassword;
+    user.refreshToken = undefined; // Invalidate current session
+    await user.save();
+
+    return res.status(200).json(new ApiResponse(200, {}, "Password reset successfully"));
+  } catch (error) {
+    throw new ApiError(401, "Invalid or expired reset token");
+  }
+});
 
 // Helper: generate both tokens and save refresh token to DB
 const generateAccessAndRefereshTokens = async (userId) => {
