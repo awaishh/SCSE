@@ -6,6 +6,7 @@ import cookieParser from "cookie-parser";
 import connectDb from "./db/index.js";
 import authRouter from "./routes/auth.routes.js";
 import roomRouter from "./routes/room.routes.js";
+import matchRouter from "./routes/match.routes.js";
 import passport from "./utils/passport.js";
 import { ApiError } from "./utils/api-error.js";
 import { sanitizeInput } from "./middlewares/sanitize.middleware.js";
@@ -34,6 +35,7 @@ app.use(sanitizeInput);
 // Routes
 app.use("/auth", authRouter);
 app.use("/api/rooms", roomRouter);
+app.use("/api/matches", matchRouter);
 
 // Basic health check
 app.get("/", (req, res) => {

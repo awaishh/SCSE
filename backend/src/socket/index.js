@@ -49,6 +49,21 @@ export const initSocket = (server) => {
 
     socket.on("disconnect", () => {
       console.log(`Socket disconnected: ${socket.id}`);
+
+      // Notify all rooms this socket was in about the disconnection.
+      // Clients can use this to show a "player disconnected" indicator
+      // and trigger inactivity checks on the server side.
+      if (socket.user) {
+        // socket.rooms includes the socket's own id room, so we skip that
+        socket.rooms.forEach((roomId) => {
+          if (roomId !== socket.id) {
+            io.to(roomId).emit("player:disconnected", {
+              userId: socket.user._id,
+              timestamp: new Date(),
+            });
+          }
+        });
+      }
     });
   });
 
