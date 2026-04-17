@@ -57,7 +57,7 @@ app.get("/", (req, res) => {
 });
 
 // Centralized error handler
-app.use((err, req, res, next) => {
+app.use((err, _req, res, _next) => {
   // Known operational errors thrown via ApiError
   if (err instanceof ApiError) {
     return res.status(err.statusCode).json({
