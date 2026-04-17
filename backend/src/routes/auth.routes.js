@@ -2,9 +2,11 @@ import { Router } from "express";
 import {
   registerUser,
   loginUser,
+  loginWith2FA,
   logoutUser,
   refreshAccessToken,
   oauthSuccess,
+  getMe,
   setup2FA,
   verify2FA,
   forgotPassword,
@@ -21,8 +23,10 @@ const router = Router();
 // Local Auth
 router.post("/register", authRateLimiter, validateRegister, runValidation, registerUser);
 router.post("/login", authRateLimiter, validateLogin, runValidation, loginUser);
+router.post("/login/2fa", authRateLimiter, loginWith2FA);
 router.post("/refresh", refreshAccessToken);
 router.post("/logout", verifyJWT, logoutUser);
+router.get("/me", verifyJWT, getMe);
 
 // 2FA & Password Reset
 router.post("/setup-2fa", verifyJWT, setup2FA);

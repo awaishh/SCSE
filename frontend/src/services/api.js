@@ -2,33 +2,40 @@ import axios from "axios";
 
 const API = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/auth",
-  withCredentials: true, // Crucial for sending/receiving cookies
+  withCredentials: true,
 });
 
-// Response Interceptor: Handle Refresh Token automatically
+// URLs that should NEVER trigger the refresh retry logic
+const SKIP_REFRESH_URLS = ["/refresh", "/login", "/me", "/register"];
+
 API.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    // If 401 and not already retrying
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    const shouldSkip = SKIP_REFRESH_URLS.some((url) =>
+      originalRequest.url?.includes(url)
+    );
+
+    // Only attempt refresh for 401s on non-auth endpoints, and only once
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !shouldSkip
+    ) {
       originalRequest._retry = true;
 
       try {
-        // Just call refresh. The backend will update both cookies.
         await axios.post(
           "http://localhost:5000/auth/refresh",
           {},
           { withCredentials: true }
         );
-
-        // Retry the original request (now it will have the new accessToken cookie)
+        // Retry the original request with the new cookie
         return API(originalRequest);
-      } catch (refreshError) {
-        // Refresh token expired or invalid, logout user
-        window.location.href = "/login";
-        return Promise.reject(refreshError);
+      } catch {
+        // Refresh failed — just reject, let the component/context handle it
+        return Promise.reject(error);
       }
     }
 

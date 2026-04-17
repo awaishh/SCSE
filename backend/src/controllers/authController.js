@@ -188,8 +188,14 @@ export const loginUser = asyncHandler(async (req, res) => {
     throw new ApiError(401, "Invalid user credentials");
   }
 
-  const { accessToken, refreshToken } = await generateAccessAndRefereshTokens(user._id);
+  // If 2FA is enabled, signal the frontend to ask for the code
+  if (user.isTwoFactorEnabled) {
+    return res
+      .status(200)
+      .json(new ApiResponse(200, { requires2FA: true }, "2FA verification required"));
+  }
 
+  const { accessToken, refreshToken } = await generateAccessAndRefereshTokens(user._id);
   const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
 
   return res
@@ -198,6 +204,45 @@ export const loginUser = asyncHandler(async (req, res) => {
     .cookie("refreshToken", refreshToken, cookieOptions)
     .json(
       new ApiResponse(200, { user: loggedInUser, accessToken, refreshToken }, "User logged in successfully")
+    );
+});
+
+// POST /auth/login/2fa — complete login with 2FA code
+export const loginWith2FA = asyncHandler(async (req, res) => {
+  const { email, password, code } = req.body;
+
+  if (!email || !password || !code) {
+    throw new ApiError(400, "Email, password, and 2FA code are required");
+  }
+
+  const user = await User.findOne({ email });
+  if (!user) throw new ApiError(404, "User does not exist");
+
+  const isPasswordValid = await user.isPasswordCorrect(password);
+  if (!isPasswordValid) throw new ApiError(401, "Invalid credentials");
+
+  if (!user.isTwoFactorEnabled || !user.twoFactorSecret) {
+    throw new ApiError(400, "2FA is not enabled for this account");
+  }
+
+  const verified = speakeasy.totp.verify({
+    secret: user.twoFactorSecret,
+    encoding: "base32",
+    token: code,
+    window: 1,
+  });
+
+  if (!verified) throw new ApiError(401, "Invalid 2FA code");
+
+  const { accessToken, refreshToken } = await generateAccessAndRefereshTokens(user._id);
+  const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
+
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, cookieOptions)
+    .cookie("refreshToken", refreshToken, cookieOptions)
+    .json(
+      new ApiResponse(200, { user: loggedInUser, accessToken, refreshToken }, "Login successful")
     );
 });
 
@@ -246,6 +291,13 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(200, { user: loggedInUser, accessToken, refreshToken: newRefreshToken }, "Access token refreshed")
     );
+});
+
+// GET /auth/me — return current authenticated user
+export const getMe = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id).select("-password -refreshToken");
+  if (!user) throw new ApiError(404, "User not found");
+  return res.status(200).json(new ApiResponse(200, { user }, "User fetched successfully"));
 });
 
 // OAuth success redirect (Google / GitHub)

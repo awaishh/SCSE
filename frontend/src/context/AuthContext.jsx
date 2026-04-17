@@ -8,16 +8,16 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // On mount: check if a valid session exists via /me
   useEffect(() => {
     checkAuthStatus();
   }, []);
 
   const checkAuthStatus = async () => {
     try {
-      // Calling refresh on load to verify user session via cookies
-      const { data: apiResponse } = await API.post("/refresh");
-      setUser(apiResponse.data.user); 
-    } catch (error) {
+      const { data: apiResponse } = await API.get("/me");
+      setUser(apiResponse.data.user);
+    } catch {
       setUser(null);
     } finally {
       setLoading(false);
@@ -27,12 +27,29 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
       const { data: apiResponse } = await API.post("/login", credentials);
-      // Backend returns ApiResponse { success, data: { user, accessToken, ... }, message }
+      const result = apiResponse.data;
+      // If backend returns requires2FA flag, don't set user yet
+      if (result?.requires2FA) {
+        return { requires2FA: true };
+      }
+      setUser(result.user);
+      toast.success("Login successful!");
+      return result;
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Login failed");
+      throw error;
+    }
+  };
+
+  // Called after 2FA code is entered during login
+  const verify2FALogin = async ({ email, password, code }) => {
+    try {
+      const { data: apiResponse } = await API.post("/login/2fa", { email, password, code });
       setUser(apiResponse.data.user);
       toast.success("Login successful!");
       return apiResponse.data;
     } catch (error) {
-      toast.error(error.response?.data?.message || "Login failed");
+      toast.error(error.response?.data?.message || "Invalid 2FA code");
       throw error;
     }
   };
@@ -40,7 +57,7 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const { data: apiResponse } = await API.post("/register", userData);
-      toast.success("Registration successful! Please login.");
+      toast.success("Account created! Please sign in.");
       return apiResponse.data;
     } catch (error) {
       toast.error(error.response?.data?.message || "Registration failed");
@@ -51,10 +68,11 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       await API.post("/logout");
+    } catch {
+      // ignore
+    } finally {
       setUser(null);
-      toast.success("Logged out successfully");
-    } catch (error) {
-      toast.error("Logout failed");
+      toast.success("Logged out");
     }
   };
 
@@ -72,10 +90,10 @@ export const AuthProvider = ({ children }) => {
     try {
       const { data: apiResponse } = await API.post("/verify-2fa", { code });
       setUser((prev) => ({ ...prev, isTwoFactorEnabled: true }));
-      toast.success("2FA enabled successfully");
+      toast.success("2FA enabled successfully!");
       return apiResponse.data;
     } catch (error) {
-      toast.error(error.response?.data?.message || "2FA verification failed");
+      toast.error(error.response?.data?.message || "Invalid code");
       throw error;
     }
   };
@@ -83,7 +101,7 @@ export const AuthProvider = ({ children }) => {
   const forgotPassword = async (email) => {
     try {
       const { data: apiResponse } = await API.post("/forgot-password", { email });
-      toast.success(apiResponse.message);
+      toast.success("Check your authenticator app to continue");
       return apiResponse.data;
     } catch (error) {
       toast.error(error.response?.data?.message || "Request failed");
@@ -94,7 +112,7 @@ export const AuthProvider = ({ children }) => {
   const verifyResetCode = async (email, code) => {
     try {
       const { data: apiResponse } = await API.post("/verify-reset-code", { email, code });
-      toast.success("Code verified successfully");
+      toast.success("Code verified!");
       return apiResponse.data;
     } catch (error) {
       toast.error(error.response?.data?.message || "Invalid code");
@@ -105,7 +123,7 @@ export const AuthProvider = ({ children }) => {
   const resetPassword = async (resetToken, newPassword) => {
     try {
       const { data: apiResponse } = await API.post("/reset-password", { resetToken, newPassword });
-      toast.success("Password reset successfully");
+      toast.success("Password reset! Please sign in.");
       return apiResponse.data;
     } catch (error) {
       toast.error(error.response?.data?.message || "Reset failed");
@@ -119,6 +137,7 @@ export const AuthProvider = ({ children }) => {
         user,
         loading,
         login,
+        verify2FALogin,
         register,
         logout,
         setup2FA,

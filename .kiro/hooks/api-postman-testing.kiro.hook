@@ -6,9 +6,12 @@
   "when": {
     "type": "fileEdited",
     "patterns": [
-      "backend/src/**/*.js",
-      "backend/package.json",
-      "backend/.env"
+      "backend/src/controllers/*.js",
+      "backend/src/routes/*.js",
+      "backend/src/middlewares/*.js",
+      "backend/src/models/*.js",
+      "backend/src/services/*.js",
+      "backend/src/index.js"
     ]
   },
   "then": {

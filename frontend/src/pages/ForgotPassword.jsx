@@ -12,24 +12,27 @@ const ForgotPassword = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!email) return;
     setLoading(true);
     try {
       await forgotPassword(email);
-      // Store email in state for next step
       navigate("/verify-reset", { state: { email } });
     } catch (error) {
-      // Handled in context
+      // handled in context
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
-      <div className="max-w-md w-full bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-8 border border-gray-100 dark:border-gray-800">
+    <div className="min-h-screen w-full flex items-center justify-center bg-gray-950 px-4">
+      <div className="w-full max-w-md bg-gray-900 rounded-2xl shadow-2xl border border-gray-800 p-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Forgot Password?</h1>
-          <p className="text-gray-500 mt-2">Enter your email and we'll verify your identity with 2FA</p>
+          <div className="text-4xl mb-3">🔑</div>
+          <h1 className="text-2xl font-bold text-white">Forgot Password?</h1>
+          <p className="text-gray-400 mt-2 text-sm">
+            Enter your email — we'll verify your identity via 2FA
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -41,15 +44,14 @@ const ForgotPassword = () => {
             onChange={(e) => setEmail(e.target.value)}
             required
           />
-
           <Button type="submit" loading={loading}>
             Continue
           </Button>
         </form>
 
-        <div className="text-center mt-8">
-          <Link to="/login" className="text-sm text-blue-600 hover:underline font-semibold">
-            Back to login
+        <div className="text-center mt-6">
+          <Link to="/login" className="text-sm text-blue-400 hover:text-blue-300">
+            ← Back to login
           </Link>
         </div>
       </div>

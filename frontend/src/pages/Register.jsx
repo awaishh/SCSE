@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -6,7 +7,6 @@ import { useAuth } from "../context/AuthContext";
 import Input from "../components/UI/Input";
 import Button from "../components/UI/Button";
 import OAuthButtons from "../components/auth/OAuthButtons";
-import { useState } from "react";
 
 const registerSchema = z
   .object({
@@ -25,11 +25,7 @@ const Register = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm({
+  const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(registerSchema),
   });
 
@@ -40,21 +36,21 @@ const Register = () => {
       await registerUser(registerData);
       navigate("/login");
     } catch (error) {
-      // Error handled by toast in context
+      // handled by toast in context
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 px-4 py-12">
-      <div className="max-w-md w-full bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-8 border border-gray-100 dark:border-gray-800">
+    <div className="min-h-screen w-full flex items-center justify-center bg-gray-950 px-4 py-12">
+      <div className="w-full max-w-md bg-gray-900 rounded-2xl shadow-2xl p-8 border border-gray-800">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Create Account</h1>
-          <p className="text-gray-500 mt-2">Join us and start your journey today</p>
+          <h1 className="text-3xl font-bold text-white">Create Account</h1>
+          <p className="text-gray-400 mt-2 text-sm">Join the battle arena</p>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={handleSubmit(onSubmit)} noValidate>
           <Input
             label="Full Name"
             type="text"
@@ -84,16 +80,16 @@ const Register = () => {
             {...register("confirmPassword")}
           />
 
-          <Button type="submit" loading={isSubmitting} className="mt-2">
-            Sign Up
+          <Button type="submit" loading={isSubmitting}>
+            Create Account
           </Button>
         </form>
 
         <OAuthButtons />
 
-        <p className="text-center mt-8 text-sm text-gray-600 dark:text-gray-400">
+        <p className="text-center mt-6 text-sm text-gray-500">
           Already have an account?{" "}
-          <Link to="/login" className="text-blue-600 hover:underline font-semibold">
+          <Link to="/login" className="text-blue-400 hover:text-blue-300 font-semibold">
             Sign in
           </Link>
         </p>

@@ -17,25 +17,28 @@ const VerifyReset = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (code.length !== 6) return toast.error("Enter 6-digit code");
-
+    if (code.length !== 6) return toast.error("Enter a 6-digit code");
     setLoading(true);
     try {
       const data = await verifyResetCode(email, code);
       navigate("/reset-password", { state: { resetToken: data.resetToken } });
     } catch (error) {
-      // Handled in context
+      // handled in context
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 px-4">
-      <div className="max-w-md w-full bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-8 border border-gray-100 dark:border-gray-800">
+    <div className="min-h-screen w-full flex items-center justify-center bg-gray-950 px-4">
+      <div className="w-full max-w-md bg-gray-900 rounded-2xl shadow-2xl border border-gray-800 p-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Verify Identity</h1>
-          <p className="text-gray-500 mt-2">Enter the 6-digit code from your authenticator app</p>
+          <div className="text-4xl mb-3">📱</div>
+          <h1 className="text-2xl font-bold text-white">Verify Identity</h1>
+          <p className="text-gray-400 mt-2 text-sm">
+            Enter the 6-digit code from your authenticator app for{" "}
+            <span className="text-white font-medium">{email}</span>
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -47,7 +50,6 @@ const VerifyReset = () => {
             onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
             required
           />
-
           <Button type="submit" loading={loading}>
             Verify Code
           </Button>

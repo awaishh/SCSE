@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Button from "../components/UI/Button";
 import Input from "../components/UI/Input";
@@ -6,99 +7,121 @@ import toast from "react-hot-toast";
 
 const Setup2FA = () => {
   const { setup2FA, verify2FA, user } = useAuth();
-  const [data, setData] = useState(null);
+  const navigate = useNavigate();
+  const [qrData, setQrData] = useState(null);
   const [code, setCode] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user?.isTwoFactorEnabled) {
-      load2FA();
-    }
-  }, [user]);
+    if (user?.isTwoFactorEnabled) return;
+    initSetup();
+  }, []);
 
-  const load2FA = async () => {
+  const initSetup = async () => {
+    setLoading(true);
     try {
       const res = await setup2FA();
-      setData(res);
+      setQrData(res);
     } catch (error) {
-      // Handled in context
+      // handled in context
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleVerify = async (e) => {
     e.preventDefault();
-    if (code.length !== 6) return toast.error("Enter 6-digit code");
-    
+    if (code.length !== 6) return toast.error("Enter a 6-digit code");
     setIsVerifying(true);
     try {
       await verify2FA(code);
+      navigate("/dashboard");
     } catch (error) {
-      // Handled in context
+      // handled in context
     } finally {
       setIsVerifying(false);
     }
   };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(data.secret);
-    toast.success("Secret copied!");
+  const copySecret = () => {
+    navigator.clipboard.writeText(qrData.secret);
+    toast.success("Secret copied to clipboard");
   };
 
   if (user?.isTwoFactorEnabled) {
     return (
-      <div className="max-w-md mx-auto mt-12 p-8 bg-white dark:bg-gray-900 rounded-2xl shadow-xl text-center border border-green-100 dark:border-green-900/30">
-        <h2 className="text-2xl font-bold dark:text-white">2FA is Enabled</h2>
-        <p className="text-gray-500 mt-2">Your account is secured with two-factor authentication.</p>
+      <div className="min-h-screen w-full flex items-center justify-center bg-gray-950 px-4">
+        <div className="w-full max-w-md bg-gray-900 rounded-2xl border border-green-800/40 p-8 text-center">
+          <div className="text-5xl mb-4">✅</div>
+          <h2 className="text-2xl font-bold text-white">2FA Already Enabled</h2>
+          <p className="text-gray-400 mt-2 text-sm">Your account is secured with two-factor authentication.</p>
+          <Button className="mt-6" onClick={() => navigate("/dashboard")}>
+            Back to Dashboard
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-md mx-auto mt-12 p-8 bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800">
-      <h2 className="text-2xl font-bold mb-6 dark:text-white">
-        Setup 2FA
-      </h2>
-      
-      {data ? (
-        <div className="space-y-6">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Scan this QR code in your authenticator app (Google Authenticator, Authy, etc.)
+    <div className="min-h-screen w-full flex items-center justify-center bg-gray-950 px-4 py-12">
+      <div className="w-full max-w-md bg-gray-900 rounded-2xl shadow-2xl border border-gray-800 p-8">
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-bold text-white">Setup Two-Factor Auth</h1>
+          <p className="text-gray-400 text-sm mt-2">
+            Scan the QR code with Google Authenticator or Authy
           </p>
-          
-          <div className="bg-white p-4 rounded-xl flex justify-center border border-gray-100">
-            <img src={data.qrCode} alt="2FA QR Code" className="w-48 h-48" />
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
           </div>
-          
-          <div className="relative">
-            <label className="text-xs font-bold text-gray-500 uppercase">Manual Secret Key</label>
-            <div className="flex gap-2 mt-1">
-              <code className="flex-1 bg-gray-50 dark:bg-gray-800 p-2 rounded text-sm break-all dark:text-gray-300 border border-gray-100 dark:border-gray-700">
-                {data.secret}
-              </code>
-              <button onClick={copyToClipboard} className="text-blue-600 text-sm font-bold">
-                Copy
-              </button>
+        ) : qrData ? (
+          <div className="space-y-6">
+            {/* QR Code */}
+            <div className="bg-white rounded-xl p-4 flex justify-center">
+              <img src={qrData.qrCode} alt="2FA QR Code" className="w-48 h-48" />
+            </div>
+
+            {/* Manual secret */}
+            <div>
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Manual Entry Key</p>
+              <div className="flex gap-2 items-center bg-gray-800 rounded-lg p-3 border border-gray-700">
+                <code className="flex-1 text-sm text-gray-300 break-all">{qrData.secret}</code>
+                <button
+                  onClick={copySecret}
+                  className="text-blue-400 text-xs font-bold hover:text-blue-300 shrink-0"
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+
+            {/* Verify form */}
+            <div className="border-t border-gray-800 pt-6">
+              <p className="text-sm text-gray-400 mb-4">
+                After scanning, enter the 6-digit code to confirm setup:
+              </p>
+              <form onSubmit={handleVerify}>
+                <Input
+                  label="Verification Code"
+                  placeholder="000000"
+                  maxLength={6}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                />
+                <Button type="submit" loading={isVerifying}>
+                  Verify & Enable 2FA
+                </Button>
+              </form>
             </div>
           </div>
-          
-          <form onSubmit={handleVerify} className="pt-4 border-t border-gray-100 dark:border-gray-800">
-            <Input
-              label="Verification Code"
-              placeholder="000000"
-              maxLength={6}
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-            />
-            <Button type="submit" loading={isVerifying}>
-              Verify & Enable
-            </Button>
-          </form>
-        </div>
-      ) : (
-        <div className="py-12 flex justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      )}
+        ) : (
+          <p className="text-center text-red-400">Failed to load 2FA setup. Please try again.</p>
+        )}
+      </div>
     </div>
   );
 };
