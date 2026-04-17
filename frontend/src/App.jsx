@@ -24,6 +24,7 @@ import Replay from "./pages/Replay";
 import MatchHistory from "./pages/MatchHistory";
 import JoinViaQR from "./pages/JoinViaQR";
 import Guild from "./pages/Guild";
+import JoinGuildViaLink from "./pages/JoinGuildViaLink";
 import Leaderboard from "./pages/Leaderboard";
 import NotFound from "./pages/NotFound";
 
@@ -58,6 +59,7 @@ function App() {
                   <Route path="/match-history" element={<MatchHistory />} />
                   <Route path="/join/:roomCode" element={<JoinViaQR />} />
                   <Route path="/guild" element={<Guild />} />
+                  <Route path="/guild/join/:guildId" element={<JoinGuildViaLink />} />
                   <Route path="/leaderboard" element={<Leaderboard />} />
                 </Route>
 

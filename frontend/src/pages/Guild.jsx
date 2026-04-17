@@ -1,24 +1,67 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import QRCode from "qrcode";
 import { useGuild } from "../context/GuildContext";
 import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
+
+const BASE_URL = window.location.origin;
+
+// QR invite card component
+const InviteCard = ({ guildId }) => {
+  const [qr, setQr] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const inviteUrl = `${BASE_URL}/guild/join/${guildId}`;
+
+  useEffect(() => {
+    QRCode.toDataURL(inviteUrl, {
+      width: 160,
+      margin: 2,
+      color: { dark: "#111827", light: "#ffffff" },
+    }).then(setQr);
+  }, [inviteUrl]);
+
+  const copy = () => {
+    navigator.clipboard.writeText(inviteUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    toast.success("Invite link copied!");
+  };
+
+  return (
+    <div className="border-2 border-violet-100 rounded-xl p-5 flex flex-col items-center gap-3 bg-violet-50/30">
+      <p className="text-xs font-bold uppercase tracking-widest text-violet-600">Invite Link</p>
+      <p className="text-xs text-gray-400 text-center">Share this QR or link — anyone who scans/clicks joins your guild</p>
+      {qr ? (
+        <img src={qr} alt="Guild invite QR" className="rounded-lg border border-gray-100" style={{ width: 140, height: 140 }} />
+      ) : (
+        <div className="w-36 h-36 bg-gray-100 rounded-lg animate-pulse" />
+      )}
+      <div className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 flex items-center gap-2">
+        <p className="text-xs text-gray-400 truncate flex-1 font-mono">{inviteUrl}</p>
+        <button
+          onClick={copy}
+          className="text-xs font-bold text-violet-600 hover:text-violet-700 shrink-0"
+        >
+          {copied ? "Copied!" : "Copy"}
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const Guild = () => {
   const { user } = useAuth();
   const { guild, leaderboard, loading, createGuild, joinGuild, leaveGuild, fetchGuild, fetchLeaderboard, setGuild } = useGuild();
   const navigate = useNavigate();
 
-  const [tab, setTab] = useState("my"); // "my" | "create" | "browse"
+  const [tab, setTab] = useState("my");
   const [createName, setCreateName] = useState("");
   const [createDesc, setCreateDesc] = useState("");
-  const [joinId, setJoinId] = useState("");
+  const [showInvite, setShowInvite] = useState(false);
 
   useEffect(() => {
-    // Load user's guild if they have one
-    if (user?.guildId && !guild) {
-      fetchGuild(user.guildId);
-    }
+    if (user?.guildId && !guild) fetchGuild(user.guildId);
     fetchLeaderboard();
   }, [user]);
 
@@ -41,6 +84,7 @@ const Guild = () => {
   };
 
   const isOwner = guild && (guild.ownerId?._id === user?._id || guild.ownerId === user?._id);
+  const guildId = guild?._id;
 
   return (
     <div className="min-h-screen bg-white text-[#111827]">
@@ -101,13 +145,41 @@ const Guild = () => {
                   </div>
                   <div className="flex items-center gap-4 text-xs text-gray-400">
                     <span>{guild.members?.length} / {guild.maxMembers} members</span>
-                    {isOwner && <span className="bg-amber-50 text-amber-600 font-bold px-2 py-0.5 rounded-full">You are the owner</span>}
+                    {isOwner && <span className="bg-amber-50 text-amber-600 font-bold px-2 py-0.5 rounded-full">Owner</span>}
                   </div>
+                </div>
+
+                {/* Invite section */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Invite Members</p>
+                    <button
+                      onClick={() => setShowInvite(!showInvite)}
+                      className="text-xs font-semibold text-violet-600 hover:text-violet-700"
+                    >
+                      {showInvite ? "Hide" : "Show QR & Link"}
+                    </button>
+                  </div>
+                  {showInvite && guildId && <InviteCard guildId={guildId} />}
+                  {!showInvite && (
+                    <div
+                      onClick={() => setShowInvite(true)}
+                      className="border-2 border-dashed border-violet-200 rounded-xl p-5 flex items-center gap-4 cursor-pointer hover:border-violet-400 transition-colors"
+                    >
+                      <div className="w-10 h-10 bg-violet-50 rounded-lg flex items-center justify-center text-violet-600 text-lg font-bold">+</div>
+                      <div>
+                        <p className="text-sm font-semibold text-[#111827]">Invite people to your guild</p>
+                        <p className="text-xs text-gray-400 mt-0.5">Share a QR code or invite link — they join instantly</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Members */}
                 <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Members</p>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+                    Members ({guild.members?.length})
+                  </p>
                   <div className="space-y-2">
                     {guild.members?.map((m) => {
                       const mid = m.userId?._id || m.userId;
@@ -121,10 +193,14 @@ const Guild = () => {
                             {mname[0]?.toUpperCase()}
                           </div>
                           <div className="flex-1">
-                            <p className="text-sm font-semibold">{mname} {isMe && <span className="text-violet-500 text-xs">(you)</span>}</p>
+                            <p className="text-sm font-semibold">
+                              {mname} {isMe && <span className="text-violet-500 text-xs">(you)</span>}
+                            </p>
                             <p className="text-xs text-gray-400">Rating: {mrating}</p>
                           </div>
-                          {isGuildOwner && <span className="text-[10px] bg-amber-100 text-amber-600 font-bold px-1.5 py-0.5 rounded">OWNER</span>}
+                          {isGuildOwner && (
+                            <span className="text-[10px] bg-amber-100 text-amber-600 font-bold px-1.5 py-0.5 rounded">OWNER</span>
+                          )}
                         </div>
                       );
                     })}
@@ -161,7 +237,7 @@ const Guild = () => {
           <div className="max-w-md">
             {user?.guildId ? (
               <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-xl">
-                <p className="text-gray-400 text-sm">You must leave your current guild before creating one</p>
+                <p className="text-gray-400 text-sm">Leave your current guild before creating a new one</p>
               </div>
             ) : (
               <form onSubmit={handleCreate} className="space-y-5">
@@ -204,7 +280,7 @@ const Guild = () => {
           </div>
         )}
 
-        {/* ── LEADERBOARD / BROWSE ── */}
+        {/* ── LEADERBOARD ── */}
         {tab === "browse" && (
           <div className="space-y-3">
             {leaderboard.length === 0 ? (
