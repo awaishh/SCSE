@@ -49,6 +49,7 @@ const guildSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Indexes
 guildSchema.index({ guildRating: -1 }); // for leaderboard queries
 
 export const Guild = mongoose.model("Guild", guildSchema);
