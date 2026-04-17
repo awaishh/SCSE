@@ -1,6 +1,5 @@
 import { useAuth } from "../context/AuthContext";
 import Button from "../components/UI/Button";
-import { LogOut, User, ShieldCheck } from "lucide-react";
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
@@ -10,7 +9,6 @@ const Dashboard = () => {
       {/* Simple Navbar */}
       <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <ShieldCheck className="text-blue-600" size={32} />
           <span className="text-xl font-bold dark:text-white">SecureApp</span>
         </div>
         <div className="flex items-center gap-4">
@@ -18,7 +16,6 @@ const Dashboard = () => {
             Welcome, <span className="font-semibold">{user?.name || "User"}</span>
           </span>
           <Button variant="danger" className="w-auto py-1.5 px-3 text-sm" onClick={logout}>
-            <LogOut size={16} className="mr-2" />
             Logout
           </Button>
         </div>
@@ -28,7 +25,6 @@ const Dashboard = () => {
       <main className="max-w-4xl mx-auto p-8">
         <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 p-8">
           <h2 className="text-2xl font-bold mb-6 dark:text-white flex items-center gap-2">
-            <User className="text-blue-600" />
             Profile Dashboard
           </h2>
           

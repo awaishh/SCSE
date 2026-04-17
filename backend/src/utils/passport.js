@@ -8,24 +8,52 @@ dotenv.config();
 
 const oauthCallback = async (accessToken, refreshToken, profile, done) => {
   try {
-    let user = await User.findOne({
-      $or: [{ googleId: profile.id }, { githubId: profile.id }, { email: profile.emails[0].value }],
-    });
+    const email = profile.emails && profile.emails.length > 0 ? profile.emails[0].value : null;
+
+    // Build search query safely
+    const query = [];
+    if (profile.provider === "google") query.push({ googleId: profile.id });
+    if (profile.provider === "github") query.push({ githubId: profile.id });
+    if (email) query.push({ email: email });
+
+    if (query.length === 0) {
+      return done(new Error("Insufficient profile information"), null);
+    }
+
+    let user = await User.findOne({ $or: query });
 
     if (!user) {
+      // If user doesn't exist, we MUST have an email to create them
+      if (!email) {
+        return done(new Error("Email is required but not provided by social provider"), null);
+      }
+
       user = await User.create({
-        name: profile.displayName || profile.username,
-        email: profile.emails[0].value,
+        name: profile.displayName || profile.username || "Social User",
+        email: email,
         googleId: profile.provider === "google" ? profile.id : undefined,
         githubId: profile.provider === "github" ? profile.id : undefined,
-        avatar: profile.photos[0]?.value,
+        avatar: profile.photos?.[0]?.value,
       });
     } else {
-      // Update ID if not present (in case user previously registered with email or another provider)
-      if (profile.provider === "google" && !user.googleId) user.googleId = profile.id;
-      if (profile.provider === "github" && !user.githubId) user.githubId = profile.id;
-      if (!user.avatar) user.avatar = profile.photos[0]?.value;
-      await user.save();
+      // Update missing provider IDs to link accounts automatically
+      let isModified = false;
+      if (profile.provider === "google" && !user.googleId) {
+        user.googleId = profile.id;
+        isModified = true;
+      }
+      if (profile.provider === "github" && !user.githubId) {
+        user.githubId = profile.id;
+        isModified = true;
+      }
+      if (!user.avatar && profile.photos?.[0]?.value) {
+        user.avatar = profile.photos[0].value;
+        isModified = true;
+      }
+
+      if (isModified) {
+        await user.save({ validateBeforeSave: false });
+      }
     }
 
     return done(null, user);
@@ -40,6 +68,7 @@ passport.use(
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       callbackURL: "/auth/google/callback",
+      proxy: true,
     },
     oauthCallback
   )
@@ -52,12 +81,12 @@ passport.use(
       clientSecret: process.env.GITHUB_CLIENT_SECRET,
       callbackURL: "/auth/github/callback",
       scope: ["user:email"],
+      proxy: true,
     },
     oauthCallback
   )
 );
 
-// Serialize/Deserialize not strictly needed for JWT strategy but Passport requires them if using sessions
 passport.serializeUser((user, done) => done(null, user.id));
 passport.deserializeUser(async (id, done) => {
   try {

@@ -1,5 +1,4 @@
 import React from "react";
-import { Github, Chrome } from "lucide-react";
 
 const OAuthButtons = () => {
   const handleOAuth = (provider) => {
@@ -18,7 +17,6 @@ const OAuthButtons = () => {
           onClick={() => handleOAuth("google")}
           className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all font-medium"
         >
-          <Chrome size={20} className="text-blue-500" />
           <span>Google</span>
         </button>
         
@@ -26,7 +24,6 @@ const OAuthButtons = () => {
           onClick={() => handleOAuth("github")}
           className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all font-medium"
         >
-          <Github size={20} className="text-gray-900 dark:text-white" />
           <span>GitHub</span>
         </button>
       </div>
