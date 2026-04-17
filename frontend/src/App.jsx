@@ -21,6 +21,7 @@ import Lobby from "./pages/Lobby";
 import Room from "./pages/Room";
 import JoinViaQR from "./pages/JoinViaQR";
 import Guild from "./pages/Guild";
+import JoinGuildViaLink from "./pages/JoinGuildViaLink";
 import NotFound from "./pages/NotFound";
 
 function App() {
@@ -51,6 +52,7 @@ function App() {
                   <Route path="/room/:roomCode" element={<Room />} />
                   <Route path="/join/:roomCode" element={<JoinViaQR />} />
                   <Route path="/guild" element={<Guild />} />
+                  <Route path="/guild/join/:guildId" element={<JoinGuildViaLink />} />
                 </Route>
 
                 <Route path="*" element={<NotFound />} />

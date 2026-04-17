@@ -124,9 +124,9 @@ const Lobby = () => {
               </div>
               <button
                 onClick={() => setIsPrivate(!isPrivate)}
-                className={`w-11 h-6 rounded-full transition-colors relative ${isPrivate ? "bg-violet-600" : "bg-gray-200"}`}
+                className={`w-12 h-6 rounded-full transition-colors relative flex-shrink-0 ${isPrivate ? "bg-violet-600" : "bg-gray-200"}`}
               >
-                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${isPrivate ? "translate-x-5" : "translate-x-0.5"}`} />
+                <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${isPrivate ? "translate-x-7" : "translate-x-1"}`} />
               </button>
             </div>
 
