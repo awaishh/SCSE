@@ -40,6 +40,20 @@ const userSchema = new mongoose.Schema(
     refreshToken: {
       type: String,
     },
+    // Player stats
+    rating: {
+      type: Number,
+      default: 1000,
+    },
+    guildId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Guild",
+      default: null,
+    },
+    matchCount: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );

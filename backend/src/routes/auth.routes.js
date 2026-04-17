@@ -9,12 +9,13 @@ import {
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { authRateLimiter } from "../middlewares/rateLimiter.middleware.js";
 import passport from "../utils/passport.js";
+import { validateRegister, validateLogin, runValidation } from "../validators/auth.validator.js";
 
 const router = Router();
 
 // Local Auth
-router.post("/register", authRateLimiter, registerUser);
-router.post("/login", authRateLimiter, loginUser);
+router.post("/register", authRateLimiter, validateRegister, runValidation, registerUser);
+router.post("/login", authRateLimiter, validateLogin, runValidation, loginUser);
 router.post("/refresh", refreshAccessToken);
 router.post("/logout", verifyJWT, logoutUser);
 
