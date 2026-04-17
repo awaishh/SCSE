@@ -72,12 +72,17 @@ const Room = () => {
   const fetched = useRef(false);
 
   // Fetch room on mount if not already in context
+  // Also re-fetch when socket becomes available (reconnection case)
   useEffect(() => {
+    if (!socket) return;
     if (!room && !fetched.current) {
       fetched.current = true;
       getRoom(roomCode);
+    } else if (room) {
+      // Re-subscribe to room channel on reconnect
+      socket.emit("room:get", { roomCode });
     }
-  }, [room, roomCode, getRoom]);
+  }, [socket, room, roomCode, getRoom]);
 
   // Listen for match start
   useEffect(() => {

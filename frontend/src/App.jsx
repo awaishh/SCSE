@@ -19,8 +19,12 @@ import Dashboard from "./pages/Dashboard";
 import Setup2FA from "./pages/Setup2FA";
 import Lobby from "./pages/Lobby";
 import Room from "./pages/Room";
+import Match from "./pages/Match";
+import Replay from "./pages/Replay";
+import MatchHistory from "./pages/MatchHistory";
 import JoinViaQR from "./pages/JoinViaQR";
 import Guild from "./pages/Guild";
+import Leaderboard from "./pages/Leaderboard";
 import NotFound from "./pages/NotFound";
 
 function App() {
@@ -49,8 +53,12 @@ function App() {
                   <Route path="/setup-2fa" element={<Setup2FA />} />
                   <Route path="/lobby" element={<Lobby />} />
                   <Route path="/room/:roomCode" element={<Room />} />
+                  <Route path="/match/:matchId" element={<Match />} />
+                  <Route path="/replay/:matchId" element={<Replay />} />
+                  <Route path="/match-history" element={<MatchHistory />} />
                   <Route path="/join/:roomCode" element={<JoinViaQR />} />
                   <Route path="/guild" element={<Guild />} />
+                  <Route path="/leaderboard" element={<Leaderboard />} />
                 </Route>
 
                 <Route path="*" element={<NotFound />} />

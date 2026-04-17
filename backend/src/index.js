@@ -40,6 +40,8 @@ app.use(passport.initialize());
 // Block NoSQL injection attempts on all routes
 app.use(sanitizeInput);
 
+import problemRouter from "./routes/problem.routes.js";
+
 // Routes
 app.use("/auth", authRouter);
 app.use("/api/rooms", roomRouter);
@@ -50,6 +52,7 @@ app.use("/api/guilds", guildRouter);
 app.use("/api/leaderboard", leaderboardRouter);
 app.use("/api/spectator", spectatorRouter);
 app.use("/api/replay", replayRouter);
+app.use("/api/problems", problemRouter);
 
 // Basic health check
 app.get("/", (req, res) => {
@@ -79,7 +82,7 @@ app.use((err, _req, res, _next) => {
 });
 
 connectDb()
-  .then(() => {
+  .then(async () => {
     const server = createServer(app);
     const io = initSocket(server);
     app.set("io", io);

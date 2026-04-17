@@ -72,20 +72,24 @@ async function _goLive(matchId, roomId, io) {
     startInactivityTimer(match._id.toString(), roomId.toString(), io);
   }
 
-  // Blitz mode: auto-end after 15 minutes
+  // Auto-end timer for ALL game modes.
+  // Blitz modes: 15 minutes, all other modes: 30 minutes.
   const BLITZ_MODES = ['BLITZ_1V1', 'BLITZ_3V3'];
-  if (BLITZ_MODES.includes(match.gameMode)) {
-    setTimeout(async () => {
-      try {
-        const current = await Match.findById(matchId);
-        if (current && current.status === 'LIVE') {
-          await endMatch(matchId, io);
-        }
-      } catch (e) {
-        console.error('[blitz] auto-end failed:', e.message);
+  const matchDurationMs = BLITZ_MODES.includes(match.gameMode)
+    ? 15 * 60 * 1000   // 15 minutes
+    : 30 * 60 * 1000;  // 30 minutes
+
+  setTimeout(async () => {
+    try {
+      const current = await Match.findById(matchId);
+      if (current && current.status === 'LIVE') {
+        console.log(`[match] Auto-ending match ${matchId} after ${matchDurationMs / 60000} minutes`);
+        await endMatch(matchId, io);
       }
-    }, 15 * 60 * 1000); // 15 minutes
-  }
+    } catch (e) {
+      console.error('[match] auto-end failed:', e.message);
+    }
+  }, matchDurationMs);
 }
 
 // ---------------------------------------------------------------------------

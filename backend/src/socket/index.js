@@ -3,6 +3,35 @@ import jwt from "jsonwebtoken";
 import * as roomService from "../services/room.service.js";
 import * as matchService from "../services/match.service.js";
 
+// ---------------------------------------------------------------------------
+// Simple per-socket rate limiter (in-memory, per event type)
+// ---------------------------------------------------------------------------
+function createRateLimiter() {
+  const counters = new Map(); // key: eventName → { count, resetAt }
+
+  /**
+   * Check if the event should be allowed.
+   * @param {string} eventName
+   * @param {number} maxPerSecond - Max allowed calls per second
+   * @returns {boolean} true if allowed, false if rate-limited
+   */
+  return function allow(eventName, maxPerSecond = 10) {
+    const now = Date.now();
+    const entry = counters.get(eventName);
+
+    if (!entry || now >= entry.resetAt) {
+      counters.set(eventName, { count: 1, resetAt: now + 1000 });
+      return true;
+    }
+
+    entry.count++;
+    if (entry.count > maxPerSecond) {
+      return false; // rate-limited
+    }
+    return true;
+  };
+}
+
 /**
  * Initialise Socket.IO on the given HTTP server.
  * Returns the io instance so it can be stored on the Express app.
@@ -10,7 +39,7 @@ import * as matchService from "../services/match.service.js";
 export const initSocket = (server) => {
   const io = new Server(server, {
     cors: {
-      origin: process.env.CLIENT_URL,
+      origin: process.env.CLIENT_URL || "http://localhost:5173",
       credentials: true,
     },
   });
@@ -29,21 +58,65 @@ export const initSocket = (server) => {
     }
 
     if (!token) {
-      return next(new Error("Authentication error"));
+      return next(new Error("Authentication error: no token provided"));
     }
 
     try {
       const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
       socket.user = decoded;
       next();
-    } catch {
-      next(new Error("Authentication error"));
+    } catch (err) {
+      console.error("[Socket Auth] JWT verify failed:", err.message);
+      next(new Error("Authentication error: invalid token"));
     }
   });
 
+  // Track disconnect timers for grace-period reconnection
+  const disconnectTimers = new Map();
+
   // --- Connection handler ---
   io.on("connection", (socket) => {
-    console.log(`Socket connected: ${socket.id} (user: ${socket.user?._id})`);
+    const userId = socket.user?._id;
+    console.log(`[Socket] Connected: ${socket.id} (user: ${userId})`);
+
+    // Per-socket rate limiter instance
+    const rateLimit = createRateLimiter();
+
+    // Rate limit config: event → max calls per second
+    const RATE_LIMITS = {
+      "room:create": 2,
+      "room:join": 3,
+      "room:leave": 3,
+      "submit:code": 3,
+      "match:start": 2,
+      "match:end": 2,
+      "match:join": 5,
+      _default: 15,
+    };
+
+    // Wrap socket.on to inject rate limiting for all game events
+    const _originalOn = socket.on.bind(socket);
+    socket.on = (event, handler) => {
+      // Skip rate limiting for internal socket.io events
+      if (event === "disconnect" || event === "error" || event === "connect") {
+        return _originalOn(event, handler);
+      }
+      return _originalOn(event, async (...args) => {
+        const limit = RATE_LIMITS[event] || RATE_LIMITS._default;
+        if (!rateLimit(event, limit)) {
+          console.warn(`[RateLimit] ${userId} exceeded rate limit for ${event}`);
+          return socket.emit("error:rate-limit", { message: `Too many requests for ${event}. Slow down.` });
+        }
+        return handler(...args);
+      });
+    };
+
+    // Clear any pending disconnect timer for this user (they reconnected in time)
+    if (userId && disconnectTimers.has(userId)) {
+      clearTimeout(disconnectTimers.get(userId));
+      disconnectTimers.delete(userId);
+      console.log(`[Socket] Reconnect detected for user ${userId}, cancelled auto-leave`);
+    }
 
     // -----------------------------------------------------------------------
     // Room: Create
@@ -66,8 +139,9 @@ export const initSocket = (server) => {
 
         // Acknowledge the creator
         socket.emit("room:created", { success: true, room });
-        console.log(`Room ${room.roomCode} created by ${socket.user._id}`);
+        console.log(`[Room] ${room.roomCode} created by ${socket.user._id}`);
       } catch (err) {
+        console.error("[Room:Create] Error:", err.message);
         socket.emit("room:error", { message: err.message });
       }
     });
@@ -78,6 +152,10 @@ export const initSocket = (server) => {
     // -----------------------------------------------------------------------
     socket.on("room:join", async ({ roomCode } = {}) => {
       try {
+        if (!roomCode) {
+          return socket.emit("room:error", { message: "roomCode is required" });
+        }
+
         const room = await roomService.joinRoom(socket.user._id, roomCode);
 
         // Subscribe the joining socket to the room channel
@@ -88,7 +166,9 @@ export const initSocket = (server) => {
 
         // Acknowledge the joining player
         socket.emit("room:joined", { success: true, room });
+        console.log(`[Room] ${socket.user._id} joined ${roomCode}`);
       } catch (err) {
+        console.error("[Room:Join] Error:", err.message);
         socket.emit("room:error", { message: err.message });
       }
     });
@@ -117,13 +197,77 @@ export const initSocket = (server) => {
     // -----------------------------------------------------------------------
     // Room: Get (fetch current room state via socket)
     // Client emits { roomCode } → server responds with room data
+    // ALSO subscribes the socket to the room channel so they receive updates
     // -----------------------------------------------------------------------
     socket.on("room:get", async ({ roomCode } = {}) => {
       try {
+        if (!roomCode) {
+          return socket.emit("room:error", { message: "roomCode is required" });
+        }
+
         const room = await roomService.getRoomByCode(roomCode);
+
+        // Subscribe them to the room channel so they get real-time updates
+        socket.join(room._id.toString());
+
         socket.emit("room:data", { room });
       } catch (err) {
         socket.emit("room:error", { message: err.message });
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // Match: Join (subscribe to match room & receive current match state)
+    // Client emits { matchId } → server sends back match data with timer info
+    // -----------------------------------------------------------------------
+    socket.on("match:join", async ({ matchId } = {}) => {
+      try {
+        if (!matchId) {
+          return socket.emit("match:error", { message: "matchId is required" });
+        }
+
+        const match = await matchService.getMatchById(matchId);
+
+        // Subscribe to the room channel so they get real-time match events
+        socket.join(match.roomId.toString());
+
+        // Fetch player states for the leaderboard
+        const { PlayerState } = await import("../models/playerState.model.js");
+        const playerStates = await PlayerState.find({ matchId: match._id })
+          .populate("userId", "name avatar");
+
+        // Build player list with names and status
+        const players = playerStates.map((ps) => ({
+          userId: ps.userId?._id || ps.userId,
+          name: ps.userId?.name || "Player",
+          teamId: ps.teamId,
+          score: ps.score,
+          currentStage: ps.currentStage,
+          status: ps.status || "PLAYING",
+          isAlive: ps.isAlive,
+          finishedAt: ps.finishedAt,
+        }));
+
+        // Compute endTime for the timer
+        // Blitz modes: 15 min, other modes: 30 min (matches _goLive auto-end timer)
+        const BLITZ_MODES = ["BLITZ_1V1", "BLITZ_3V3"];
+        const durationMs = BLITZ_MODES.includes(match.gameMode) ? 15 * 60 * 1000 : 30 * 60 * 1000;
+        const endTime = match.startTime ? new Date(match.startTime.getTime() + durationMs) : null;
+
+        // Send match state to the joining client
+        socket.emit("match:update", {
+          matchId: match._id,
+          mode: match.gameMode,
+          status: match.status,
+          startTime: match.startTime,
+          endTime,
+          players,
+        });
+
+        console.log(`[Match] ${socket.user._id} joined match ${matchId}`);
+      } catch (err) {
+        console.error("[Match:Join] Error:", err.message);
+        socket.emit("match:error", { message: err.message });
       }
     });
 
@@ -148,13 +292,49 @@ export const initSocket = (server) => {
     // -----------------------------------------------------------------------
     // Match: End
     // Client emits { matchId } → server ends match, acks initiator
+    // Only the host or a participant of the match can end it.
     // -----------------------------------------------------------------------
     socket.on("match:end", async ({ matchId } = {}) => {
       try {
-        const match = await matchService.endMatch(matchId, io);
-        socket.emit("match:ended", { success: true, match });
+        // Authorization: verify the user is a participant or the room host
+        const match = await matchService.getMatchById(matchId);
+        const isParticipant = match.players.some(
+          (p) => (p._id || p).toString() === socket.user._id.toString()
+        );
+
+        let isHost = false;
+        if (match.roomId) {
+          const room = await roomService.getRoomById(match.roomId.toString()).catch(() => null);
+          if (room) {
+            isHost = room.hostId.toString() === socket.user._id.toString();
+          }
+        }
+
+        if (!isParticipant && !isHost) {
+          return socket.emit("match:error", { message: "You are not authorized to end this match" });
+        }
+
+        const ended = await matchService.endMatch(matchId, io);
+        socket.emit("match:ended", { success: true, match: ended });
       } catch (err) {
         socket.emit("match:error", { message: err.message });
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // Match: Leave (client leaving match view, just unsubscribe from room)
+    // -----------------------------------------------------------------------
+    socket.on("match:leave", async ({ matchId } = {}) => {
+      try {
+        if (!matchId) return;
+        const match = await matchService.getMatchById(matchId).catch(() => null);
+        if (match) {
+          socket.leave(match.roomId.toString());
+        }
+        console.log(`[Match] ${socket.user._id} left match ${matchId}`);
+      } catch (err) {
+        // Non-critical, just log
+        console.error("[Match:Leave] Error:", err.message);
       }
     });
 
@@ -205,58 +385,48 @@ export const initSocket = (server) => {
     // -----------------------------------------------------------------------
     // Legacy channel helpers (kept for backward compatibility)
     // -----------------------------------------------------------------------
-
-    // Client manually joins a room channel to receive room:updated events
     socket.on("join:room", (roomId) => {
       socket.join(roomId);
-      console.log(`Socket ${socket.id} joined room channel: ${roomId}`);
     });
 
-    // Client manually leaves a room channel
     socket.on("leave:room", (roomId) => {
       socket.leave(roomId);
-      console.log(`Socket ${socket.id} left room channel: ${roomId}`);
     });
 
     // -----------------------------------------------------------------------
-    // Disconnect
+    // Disconnect — uses a grace period so page refreshes don't kick the user
     // -----------------------------------------------------------------------
     socket.on("disconnect", async () => {
-      console.log(`Socket disconnected: ${socket.id}`);
+      console.log(`[Socket] Disconnected: ${socket.id} (user: ${userId})`);
 
-      if (socket.user) {
-        // Notify all room channels this socket was subscribed to
-        socket.rooms.forEach((roomId) => {
-          if (roomId !== socket.id) {
-            io.to(roomId).emit("player:disconnected", {
-              userId: socket.user._id,
-              timestamp: new Date(),
-            });
-          }
-        });
+      if (!userId) return;
 
-        // Auto-leave any WAITING rooms so they don't stay stale
+      // Give the user 8 seconds to reconnect (e.g. page refresh)
+      // before auto-removing them from WAITING rooms
+      const timer = setTimeout(async () => {
+        disconnectTimers.delete(userId);
         try {
           const { Room } = await import("../models/room.model.js");
           const waitingRooms = await Room.find({
-            "players.userId": socket.user._id,
+            "players.userId": userId,
             status: "WAITING",
           });
 
           for (const room of waitingRooms) {
-            await roomService.leaveRoom(
-              socket.user._id,
-              room._id.toString()
-            );
+            await roomService.leaveRoom(userId, room._id.toString());
             const updated = await roomService
               .getRoomById(room._id.toString())
               .catch(() => null);
-            io.to(room._id.toString()).emit("room:updated", { room: updated });
+            if (updated) {
+              io.to(room._id.toString()).emit("room:updated", { room: updated });
+            }
           }
         } catch (e) {
-          console.error("Auto-leave on disconnect failed:", e.message);
+          console.error("[Socket] Auto-leave on disconnect failed:", e.message);
         }
-      }
+      }, 8000); // 8-second grace period
+
+      disconnectTimers.set(userId, timer);
     });
   });
 

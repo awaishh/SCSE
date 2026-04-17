@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGuild } from "../context/GuildContext";
 import { useAuth } from "../context/AuthContext";
-import roomAPI from "../services/roomAPI";
 import toast from "react-hot-toast";
 
 const Guild = () => {

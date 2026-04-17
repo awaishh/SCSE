@@ -42,6 +42,17 @@ const playerStateSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    // Player completion status within a match
+    status: {
+      type: String,
+      enum: ["PLAYING", "FINISHED", "ELIMINATED"],
+      default: "PLAYING",
+    },
+    // When the player completed all stages (used for ranking)
+    finishedAt: {
+      type: Date,
+      default: null,
+    },
     eliminationReason: {
       type: String,
       enum: ["INACTIVITY", "WRONG_ATTEMPTS", "MATCH_END", null],

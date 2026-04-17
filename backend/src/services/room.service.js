@@ -15,33 +15,32 @@ export const createRoom = async (hostId, gameMode, isPrivate = false) => {
 
   const maxPlayers = GAME_MODES[gameMode].max;
 
-  // Retry loop to handle rare roomCode collisions
-  let roomCode;
-  let attempts = 0;
-  while (attempts < 5) {
-    const candidate = Room.generateRoomCode();
-    const existing = await Room.findOne({ roomCode: candidate });
-    if (!existing) {
-      roomCode = candidate;
-      break;
+  // Atomic retry loop: attempt to create directly and retry on duplicate key (E11000)
+  const MAX_ATTEMPTS = 5;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    const roomCode = Room.generateRoomCode();
+    try {
+      const room = await Room.create({
+        roomCode,
+        hostId,
+        gameMode,
+        maxPlayers,
+        isPrivate,
+        players: [{ userId: hostId, joinedAt: new Date() }],
+      });
+      return room.populate(PLAYER_POPULATE);
+    } catch (err) {
+      // E11000 = duplicate key error on roomCode — retry with a new code
+      if (err.code === 11000 && err.keyPattern?.roomCode) {
+        console.warn(`[Room] Code collision on "${roomCode}", retrying (${attempt + 1}/${MAX_ATTEMPTS})`);
+        continue;
+      }
+      // Any other error — rethrow
+      throw err;
     }
-    attempts++;
   }
 
-  if (!roomCode) {
-    throw new ApiError(500, "Failed to generate a unique room code. Please try again.");
-  }
-
-  const room = await Room.create({
-    roomCode,
-    hostId,
-    gameMode,
-    maxPlayers,
-    isPrivate,
-    players: [{ userId: hostId, joinedAt: new Date() }],
-  });
-
-  return room.populate(PLAYER_POPULATE);
+  throw new ApiError(500, "Failed to generate a unique room code after multiple attempts. Please try again.");
 };
 
 /**
@@ -58,14 +57,15 @@ export const joinRoom = async (userId, roomCode) => {
     throw new ApiError(400, "Room is not accepting players");
   }
 
-  if (room.players.length >= room.maxPlayers) {
-    throw new ApiError(400, "Room is full");
-  }
-
   // Check if user is already in the room
   const alreadyJoined = room.players.some((p) => p.userId.toString() === userId.toString());
   if (alreadyJoined) {
-    throw new ApiError(400, "Already in room");
+    // If they are already in the room, just return it so they can re-enter (e.g. after refresh)
+    return room.populate(PLAYER_POPULATE);
+  }
+
+  if (room.players.length >= room.maxPlayers) {
+    throw new ApiError(400, "Room is full");
   }
 
   room.players.push({ userId, joinedAt: new Date() });

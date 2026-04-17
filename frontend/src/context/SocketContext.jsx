@@ -8,7 +8,6 @@ const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 
 export const SocketProvider = ({ children }) => {
   const { user } = useAuth();
-  // Store socket in state so consumers re-render when it becomes available
   const [socket, setSocket] = useState(null);
   const [connected, setConnected] = useState(false);
   const socketRef = useRef(null);
@@ -24,27 +23,32 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
-    // accessToken is HttpOnly — we can't read it from document.cookie.
-    // Socket.IO will send cookies automatically via withCredentials.
-    // The backend verifyJWT middleware reads from socket.handshake.auth.token
-    // OR from cookies. We pass an empty string and rely on cookie transport.
+    // Don't create a duplicate connection if one already exists
+    if (socketRef.current?.connected) return;
+
+    // accessToken is HttpOnly — we rely on cookie transport.
+    // Do NOT send auth.token at all so the backend falls back to cookies.
     const s = io(SOCKET_URL, {
       withCredentials: true,
-      auth: { token: "" }, // backend falls back to cookie
       transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
     });
 
     s.on("connect", () => {
+      console.log("[Socket] Connected:", s.id);
       setConnected(true);
       setSocket(s);
     });
 
-    s.on("disconnect", () => {
+    s.on("disconnect", (reason) => {
+      console.log("[Socket] Disconnected:", reason);
       setConnected(false);
     });
 
     s.on("connect_error", (err) => {
-      console.error("Socket connect error:", err.message);
+      console.error("[Socket] Connect error:", err.message);
     });
 
     socketRef.current = s;

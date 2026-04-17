@@ -12,6 +12,7 @@ const replayEventSchema = new mongoose.Schema(
       type: String,
       enum: [
         "submission",
+        "SUBMISSION",
         "stage_advance",
         "elimination",
         "scoreboard_snapshot",

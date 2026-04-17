@@ -1,45 +1,11 @@
-import { Match } from "../models/match.model.js";
-import { PlayerState } from "../models/playerState.model.js";
 import { Submission } from "../models/submission.model.js";
-import { ApiError } from "../utils/api-error.js";
-import { evaluate } from "./judge.service.js";
-import { STAGES, endMatch } from "./match.service.js";
-import { getScoreboard, broadcastScoreboard } from "./scoreboard.service.js";
+import { PlayerState } from "../models/playerState.model.js";
+import { Match } from "../models/match.model.js";
+import { executeCode } from "./judge.service.js";
+import { getProblemWithAllTestCases } from "./problem.service.js";
 
-// ---------------------------------------------------------------------------
-// submit
-// ---------------------------------------------------------------------------
-
-/**
- * Handle a code submission for a live match.
- *
- * Flow:
- *  1. Validate match exists and is LIVE
- *  2. Validate player is alive
- *  3. Persist a Pending submission
- *  4. Refresh lastActiveAt
- *  5. Evaluate via stub judge
- *  6. Update submission with verdict
- *  7. Apply scoring / stage progression (Accepted) or wrong-attempt / elimination logic
- *  8. Emit real-time events
- *  9. Auto-end match if all players are eliminated
- */
 export const submit = async (matchId, userId, problemId, language, sourceCode, io) => {
-  // 1. Find match
-  const match = await Match.findById(matchId);
-  if (!match) throw new ApiError(404, "Match not found");
-
-  // 2. Match must be live
-  if (match.status !== "LIVE") throw new ApiError(400, "Match is not live");
-
-  // 3. Find player state
-  const playerState = await PlayerState.findOne({ matchId, userId });
-  if (!playerState) throw new ApiError(404, "Player state not found");
-
-  // 4. Eliminated players cannot submit
-  if (!playerState.isAlive) throw new ApiError(403, "Eliminated players cannot submit");
-
-  // 5. Create a Pending submission record immediately
+  // 1. Create a Pending Submission
   const submission = await Submission.create({
     matchId,
     userId,
@@ -49,150 +15,142 @@ export const submit = async (matchId, userId, problemId, language, sourceCode, i
     verdict: "Pending",
   });
 
-  // 6. Refresh activity timestamp
-  playerState.lastActiveAt = new Date();
+  // Update lastActiveAt so player doesn't get eliminated for inactivity
+  await PlayerState.findOneAndUpdate(
+    { matchId, userId },
+    { $set: { lastActiveAt: new Date() } }
+  );
+
+  try {
+    // 2. Fetch real test cases from the Problem Bank
+    const problem = await getProblemWithAllTestCases(problemId);
+    const testCases = problem.testCases;
+
+    if (!testCases || testCases.length === 0) {
+      throw new Error("No test cases found for this problem");
+    }
+
+    let allPassed = true;
+    let finalOutput = null;
+    let passedCount = 0;
+
+    // 3. Execute code against every test case via Judge0
+    for (let i = 0; i < testCases.length; i++) {
+      const tc = testCases[i];
+      const result = await executeCode(sourceCode, language, tc.input, tc.expectedOutput);
+
+      // Judge0 status.id == 3 means "Accepted"
+      if (result.status.id !== 3) {
+        allPassed = false;
+        // Map Judge0 status to our verdict enum
+        const verdictMap = {
+          4: "Wrong_Answer",
+          5: "Time_Limit_Exceeded",
+          6: "Compilation_Error",
+          11: "Runtime_Error",
+          12: "Runtime_Error",
+        };
+        submission.verdict = verdictMap[result.status.id] || "Runtime_Error";
+        finalOutput = {
+          passed: false,
+          passedCount,
+          totalCount: testCases.length,
+          error: result.stderr || result.compile_output || result.status.description,
+          runtime: parseFloat(result.time || "0") * 1000,
+          memory: parseFloat(result.memory || "0"),
+          failedTestCase: tc.isHidden ? null : { input: tc.input, expected: tc.expectedOutput, got: result.stdout },
+        };
+        break;
+      }
+
+      passedCount++;
+      finalOutput = {
+        passed: true,
+        passedCount,
+        totalCount: testCases.length,
+        runtime: parseFloat(result.time || "0") * 1000,
+        memory: parseFloat(result.memory || "0"),
+      };
+    }
+
+    if (allPassed) {
+      submission.verdict = "Accepted";
+    }
+
+    submission.evaluatedAt = new Date();
+    await submission.save();
+
+    // 4. Record submission event in replay
+    try {
+      const match = await Match.findById(matchId);
+      if (match?.startTime) {
+        const { recordEvent } = await import("./replay.service.js");
+        await recordEvent(matchId, "SUBMISSION", userId.toString(), {
+          problemId,
+          verdict: submission.verdict,
+          language,
+          runtime: finalOutput?.runtime,
+        }, match.startTime);
+      }
+    } catch (e) { /* silent */ }
+
+    // 5. Update Game State if Accepted
+    if (allPassed) {
+      await updateGameStateOnAccept(matchId, userId, io);
+    }
+
+    // 6. Broadcast result to the match room
+    const match = await Match.findById(matchId);
+    if (match) {
+      io.to(match.roomId.toString()).emit("submission:result", {
+        userId,
+        submissionId: submission._id,
+        verdict: submission.verdict,
+        ...finalOutput,
+      });
+
+      // Broadcast updated scoreboard
+      const { broadcastScoreboard } = await import("./scoreboard.service.js");
+      await broadcastScoreboard(matchId, match.roomId.toString(), io);
+    }
+
+    return submission;
+
+  } catch (error) {
+    submission.verdict = "Runtime_Error";
+    submission.evaluatedAt = new Date();
+    await submission.save();
+    throw error;
+  }
+};
+
+const updateGameStateOnAccept = async (matchId, userId, io) => {
+  const match = await Match.findById(matchId);
+  const playerState = await PlayerState.findOne({ matchId, userId });
+
+  if (!match || !playerState) return;
+
+  // Increment score and advance stage
+  playerState.score += 100;
+  playerState.currentStage = Math.min(playerState.currentStage + 1, 4);
   await playerState.save();
 
-  // 7. Evaluate (awaits stub latency)
-  const result = await evaluate(problemId, language, sourceCode);
-
-  // 8. Persist verdict
-  submission.verdict = result.verdict;
-  submission.evaluatedAt = new Date();
-  await submission.save();
-
-  // 9. Apply game logic based on verdict
-  if (result.verdict === "Accepted") {
-    // Award points: (stageIndex + 1) * 100
-    playerState.score += (playerState.currentStage + 1) * 100;
-
-    // Advance to next stage if not already at the last one
-    if (playerState.currentStage < STAGES.length - 1) {
-      playerState.currentStage += 1;
-      playerState.stageHistory.push({
-        stage: STAGES[playerState.currentStage],
-        unlockedAt: new Date(),
-      });
-    }
-
+  // If Battle Royale — first to solve all stages wins
+  if (match.gameMode === "BATTLE_ROYALE" && playerState.currentStage >= 4) {
+    playerState.status = "FINISHED";
+    playerState.finishedAt = new Date();
     await playerState.save();
 
-    // Record stage advance in replay
-    try {
-      const { recordEvent: recEv } = await import('./replay.service.js');
-      const matchDoc2 = await Match.findById(matchId);
-      if (matchDoc2?.startTime && playerState.currentStage > 0) {
-        await recEv(matchId, 'stage_advance', userId, {
-          newStage: playerState.currentStage,
-          stageDifficulty: STAGES[playerState.currentStage],
-        }, matchDoc2.startTime);
-      }
-    } catch (e) { /* silent */ }
-  } else {
-    // Wrong / error verdict
-    playerState.wrongAttempts += 1;
+    const finishedCount = await PlayerState.countDocuments({ matchId, status: "FINISHED" });
 
-    // Battle Royale elimination: 5+ wrong attempts
-    if (
-      match.gameMode === "BATTLE_ROYALE" &&
-      playerState.wrongAttempts >= 5
-    ) {
-      playerState.isAlive = false;
-      playerState.eliminationReason = "WRONG_ATTEMPTS";
-
-      // Notify everyone in the room about the elimination
-      io.to(match.roomId.toString()).emit("player:eliminated", {
-        userId,
-        reason: "WRONG_ATTEMPTS",
-        matchId,
-      });
+    if (finishedCount === 1) {
+      // First to finish — they win!
+      const { endMatch } = await import("./match.service.js");
+      match.winnerIds = [userId];
+      await match.save();
+      await endMatch(matchId.toString(), io);
+    } else {
+      io.to(match.roomId.toString()).emit("match:player-finished", { userId });
     }
-
-    await playerState.save();
-
-    // Record elimination in replay
-    try {
-      const { recordEvent: recElim } = await import('./replay.service.js');
-      const matchDoc3 = await Match.findById(matchId);
-      if (matchDoc3?.startTime) {
-        await recElim(matchId, 'elimination', userId, { reason: 'WRONG_ATTEMPTS' }, matchDoc3.startTime);
-      }
-    } catch (e) { /* silent */ }
   }
-
-  // Record this submission as a replay event.
-  // Wrapped in try/catch — replay recording must never crash the submission flow.
-  try {
-    const { recordEvent } = await import("./replay.service.js");
-    const matchDoc = await Match.findById(matchId);
-    if (matchDoc?.startTime) {
-      await recordEvent(
-        matchId,
-        "submission",
-        userId,
-        {
-          problemId,
-          language,
-          verdict: result.verdict,
-          stage: playerState.currentStage,
-        },
-        matchDoc.startTime
-      );
-    }
-  } catch (e) {
-    /* replay recording must never crash submission */
-  }
-
-  // 10. Send verdict back to the submitting player's private channel
-  io.to(userId.toString()).emit("submission:result", {
-    submissionId: submission._id,
-    verdict: result.verdict,
-    playerState: {
-      currentStage: playerState.currentStage,
-      score: playerState.score,
-      wrongAttempts: playerState.wrongAttempts,
-      isAlive: playerState.isAlive,
-    },
-  });
-
-  // 11. Broadcast updated scoreboard to the whole room
-  await broadcastScoreboard(matchId, match.roomId.toString(), io);
-
-  // 12. Auto-end match if every player has been eliminated
-  const allPlayerStates = await PlayerState.find({ matchId });
-  const allEliminated = allPlayerStates.every((ps) => !ps.isAlive);
-  if (allEliminated) {
-    await endMatch(matchId, io);
-  }
-
-  return submission;
 };
-
-// ---------------------------------------------------------------------------
-// getSubmissionsByMatch
-// ---------------------------------------------------------------------------
-
-/**
- * Return all submissions for a match, newest first.
- * Populates userId with name and avatar.
- */
-export const getSubmissionsByMatch = async (matchId) => {
-  return Submission.find({ matchId })
-    .sort({ submittedAt: -1 })
-    .populate("userId", "name avatar");
-};
-
-// ---------------------------------------------------------------------------
-// getSubmissionsByUser
-// ---------------------------------------------------------------------------
-
-/**
- * Return all submissions for a specific user within a match.
- */
-export const getSubmissionsByUser = async (matchId, userId) => {
-  return Submission.find({ matchId, userId }).sort({ submittedAt: -1 });
-};
-
-// getScoreboard and broadcastScoreboard are imported from scoreboard.service.js
-// and re-exported here for backwards compatibility with existing consumers.
-export { getScoreboard, broadcastScoreboard };
