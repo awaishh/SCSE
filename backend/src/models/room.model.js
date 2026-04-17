@@ -56,6 +56,10 @@ const roomSchema = new mongoose.Schema(
           type: Date,
           default: Date.now,
         },
+        teamId: {
+          type: String,
+          default: null,
+        },
       },
     ],
 

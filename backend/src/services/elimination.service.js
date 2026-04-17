@@ -68,6 +68,15 @@ export const startInactivityTimer = (matchId, roomId, io) => {
             timestamp: new Date(),
           });
 
+          // Record elimination in replay
+          try {
+            const { recordEvent } = await import('./replay.service.js');
+            const matchForReplay = await Match.findById(matchId);
+            if (matchForReplay?.startTime) {
+              await recordEvent(matchId, 'elimination', player.userId.toString(), { reason: 'INACTIVITY' }, matchForReplay.startTime);
+            }
+          } catch (e) { /* silent */ }
+
           console.log(
             `Player ${player.userId} eliminated for inactivity in match ${matchId}`
           );

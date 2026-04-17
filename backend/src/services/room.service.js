@@ -131,3 +131,25 @@ export const getRoomById = async (roomId) => {
 
   return room;
 };
+
+/**
+ * Set a player's team assignment within a room.
+ * Stores the teamId on the player's entry in room.players so it can be
+ * transferred to PlayerState when the match starts.
+ *
+ * @param {string} roomId
+ * @param {string} userId
+ * @param {string} teamId
+ * @returns {Promise<Room>} populated room document
+ */
+export const setTeamAssignment = async (roomId, userId, teamId) => {
+  const room = await Room.findById(roomId);
+  if (!room) throw new ApiError(404, 'Room not found');
+
+  const player = room.players.find(p => p.userId.toString() === userId.toString());
+  if (!player) throw new ApiError(404, 'Player not in room');
+
+  player.teamId = teamId;
+  await room.save();
+  return room.populate(PLAYER_POPULATE);
+};

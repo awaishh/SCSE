@@ -76,6 +76,18 @@ export const submit = async (matchId, userId, problemId, language, sourceCode, i
     }
 
     await playerState.save();
+
+    // Record stage advance in replay
+    try {
+      const { recordEvent: recEv } = await import('./replay.service.js');
+      const matchDoc2 = await Match.findById(matchId);
+      if (matchDoc2?.startTime && playerState.currentStage > 0) {
+        await recEv(matchId, 'stage_advance', userId, {
+          newStage: playerState.currentStage,
+          stageDifficulty: STAGES[playerState.currentStage],
+        }, matchDoc2.startTime);
+      }
+    } catch (e) { /* silent */ }
   } else {
     // Wrong / error verdict
     playerState.wrongAttempts += 1;
@@ -97,6 +109,15 @@ export const submit = async (matchId, userId, problemId, language, sourceCode, i
     }
 
     await playerState.save();
+
+    // Record elimination in replay
+    try {
+      const { recordEvent: recElim } = await import('./replay.service.js');
+      const matchDoc3 = await Match.findById(matchId);
+      if (matchDoc3?.startTime) {
+        await recElim(matchId, 'elimination', userId, { reason: 'WRONG_ATTEMPTS' }, matchDoc3.startTime);
+      }
+    } catch (e) { /* silent */ }
   }
 
   // Record this submission as a replay event.

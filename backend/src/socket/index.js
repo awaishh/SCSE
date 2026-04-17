@@ -151,6 +151,50 @@ export const initSocket = (server) => {
     });
 
     // -----------------------------------------------------------------------
+    // Room: Set Team Assignment
+    // Client emits { roomId, teamId } → server updates player's team in room
+    // -----------------------------------------------------------------------
+    socket.on("room:set-team", async ({ roomId, teamId } = {}) => {
+      try {
+        const room = await roomService.setTeamAssignment(roomId, socket.user._id, teamId);
+        io.to(room._id.toString()).emit("room:updated", { room });
+        socket.emit("room:team-set", { success: true, teamId });
+      } catch (err) {
+        socket.emit("room:error", { message: err.message });
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // Knockout: Advance Winner
+    // Client emits { matchId, winnerId } → server advances bracket
+    // -----------------------------------------------------------------------
+    socket.on("knockout:advance", async ({ matchId, winnerId } = {}) => {
+      try {
+        await matchService.advanceKnockoutWinner(matchId, winnerId, io);
+        socket.emit("knockout:advance-ack", { success: true });
+      } catch (err) {
+        socket.emit("match:error", { message: err.message });
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // Submit: Code (low-latency socket-based submission during live match)
+    // Client emits { matchId, problemId, language, sourceCode }
+    // -----------------------------------------------------------------------
+    socket.on("submit:code", async ({ matchId, problemId, language, sourceCode } = {}) => {
+      try {
+        if (!matchId || !problemId || !language || !sourceCode) {
+          return socket.emit("submit:error", { message: "matchId, problemId, language, sourceCode are required" });
+        }
+        const { submit } = await import("../services/submission.service.js");
+        const submission = await submit(matchId, socket.user._id, problemId, language, sourceCode, io);
+        socket.emit("submit:ack", { submissionId: submission._id, verdict: submission.verdict });
+      } catch (err) {
+        socket.emit("submit:error", { message: err.message });
+      }
+    });
+
+    // -----------------------------------------------------------------------
     // Legacy channel helpers (kept for backward compatibility)
     // -----------------------------------------------------------------------
 

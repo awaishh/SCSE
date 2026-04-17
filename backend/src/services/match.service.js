@@ -71,6 +71,21 @@ async function _goLive(matchId, roomId, io) {
     const { startInactivityTimer } = await import("./elimination.service.js");
     startInactivityTimer(match._id.toString(), roomId.toString(), io);
   }
+
+  // Blitz mode: auto-end after 15 minutes
+  const BLITZ_MODES = ['BLITZ_1V1', 'BLITZ_3V3'];
+  if (BLITZ_MODES.includes(match.gameMode)) {
+    setTimeout(async () => {
+      try {
+        const current = await Match.findById(matchId);
+        if (current && current.status === 'LIVE') {
+          await endMatch(matchId, io);
+        }
+      } catch (e) {
+        console.error('[blitz] auto-end failed:', e.message);
+      }
+    }, 15 * 60 * 1000); // 15 minutes
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -128,11 +143,15 @@ export const startMatch = async (roomId, hostId, io) => {
   await room.save();
 
   // Create a PlayerState for every participant
-  const playerStateDocs = playerUserIds.map((userId) => ({
-    matchId: match._id,
-    userId,
-    lastActiveAt: new Date(),
-  }));
+  const playerStateDocs = playerUserIds.map((userId) => {
+    const playerEntry = room.players.find(p => (p.userId._id ?? p.userId).toString() === userId.toString());
+    return {
+      matchId: match._id,
+      userId,
+      teamId: playerEntry?.teamId ?? null,
+      lastActiveAt: new Date(),
+    };
+  });
   await PlayerState.insertMany(playerStateDocs);
 
   // Notify clients that the countdown has begun
@@ -295,6 +314,77 @@ export const getMatchByRoomId = async (roomId) => {
   }
 
   return match;
+};
+
+/**
+ * Advance the winner of a knockout match to the next round.
+ * Handles bracket progression and emits socket events.
+ *
+ * @param {string} matchId
+ * @param {string} winnerId
+ * @param {import("socket.io").Server} io
+ */
+export const advanceKnockoutWinner = async (matchId, winnerId, io) => {
+  const match = await Match.findById(matchId);
+  if (!match || match.gameMode !== 'KNOCKOUT') return;
+  if (!match.bracketData) return;
+
+  const bracket = match.bracketData;
+  const rounds = bracket.rounds;
+  const currentRound = rounds[rounds.length - 1];
+
+  // Find the match in the current round and set winner
+  for (const m of currentRound.matches) {
+    if (
+      m.player1?.toString() === winnerId.toString() ||
+      m.player2?.toString() === winnerId.toString()
+    ) {
+      m.winner = winnerId;
+    }
+  }
+
+  // Check if all matches in current round have winners
+  const roundComplete = currentRound.matches.every(m => m.winner !== null);
+
+  if (roundComplete) {
+    const nextRoundPlayers = currentRound.matches
+      .map(m => m.winner)
+      .filter(Boolean);
+
+    if (nextRoundPlayers.length === 1) {
+      // Tournament over — this is the champion
+      match.winnerIds = [nextRoundPlayers[0]];
+      match.bracketData = bracket;
+      await match.save();
+      io.to(match.roomId.toString()).emit('knockout:champion', {
+        matchId,
+        winnerId: nextRoundPlayers[0],
+      });
+    } else {
+      // Generate next round
+      const nextMatches = [];
+      for (let i = 0; i < nextRoundPlayers.length; i += 2) {
+        if (i + 1 < nextRoundPlayers.length) {
+          nextMatches.push({ player1: nextRoundPlayers[i], player2: nextRoundPlayers[i + 1], winner: null });
+        } else {
+          nextMatches.push({ player1: nextRoundPlayers[i], player2: null, winner: nextRoundPlayers[i] });
+        }
+      }
+      rounds.push({ round: rounds.length + 1, matches: nextMatches });
+      match.bracketData = bracket;
+      await match.save();
+      io.to(match.roomId.toString()).emit('knockout:next-round', {
+        matchId,
+        round: rounds.length,
+        matches: nextMatches,
+      });
+    }
+  } else {
+    match.bracketData = bracket;
+    await match.save();
+  }
+
+  io.to(match.roomId.toString()).emit('knockout:updated', { matchId, bracket: match.bracketData });
 };
 
 /**
