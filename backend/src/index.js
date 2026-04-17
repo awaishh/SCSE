@@ -21,6 +21,8 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+app.set("trust proxy", 1); // Trust first proxy (Production best practice)
+
 // Middlewares
 app.use(
   cors({

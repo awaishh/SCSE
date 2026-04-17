@@ -1,21 +1,27 @@
 import rateLimit from "express-rate-limit";
 
+// Generic rate limiter for auth routes (Login/Register)
 export const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // Limit each IP to 20 requests per window
+  max: 20,
   message: {
     message: "Too many attempts from this IP, please try again after 15 minutes",
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Validation settings for v7+
+  validate: { 
+    trustProxy: true,
+    keyGeneratorIpFallback: false 
+  },
 });
 
-// Rate limiter for code submissions: 20 per minute per user (falls back to IP)
+// Specific rate limiter for submissions or sensitive actions
 export const submissionRateLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 20,
-  // Use authenticated user ID when available, otherwise fall back to IP
-  keyGenerator: (req) => (req.user?._id ? String(req.user._id) : req.ip),
+  // Primary key is User ID, fallback is IP address
+  keyGenerator: (req) => req.user?._id?.toString() || req.ip,
   message: {
     success: false,
     statusCode: 429,
@@ -23,4 +29,9 @@ export const submissionRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Validation settings for v7+
+  validate: { 
+    trustProxy: true,
+    keyGeneratorIpFallback: false 
+  },
 });

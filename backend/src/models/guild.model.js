@@ -49,9 +49,7 @@ const guildSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Index on name for query performance (unique constraint already creates one,
-// but being explicit keeps intent clear)
-guildSchema.index({ name: 1 });
+// Indexes
 guildSchema.index({ guildRating: -1 }); // for leaderboard queries
 
 export const Guild = mongoose.model("Guild", guildSchema);
