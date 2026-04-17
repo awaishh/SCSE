@@ -211,6 +211,16 @@ export const endMatch = async (matchId, io) => {
     eliminationReason: ps.eliminationReason,
   }));
 
+  // Update ELO ratings and leaderboard records for all participants.
+  // Dynamic import avoids a circular dependency with leaderboard.service.
+  try {
+    const { updateRatingsAfterMatch } = await import('./leaderboard.service.js');
+    await updateRatingsAfterMatch(match._id.toString());
+  } catch (ratingErr) {
+    // Rating update failure must not break match end flow
+    console.error('[endMatch] Rating update failed:', ratingErr);
+  }
+
   io.to(match.roomId.toString()).emit("match:finished", {
     matchId: match._id,
     winnerIds,
