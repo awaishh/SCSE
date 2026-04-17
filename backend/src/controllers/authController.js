@@ -135,11 +135,14 @@ export const refreshAccessToken = async (req, res) => {
 
     const { accessToken, refreshToken: newRefreshToken } = await generateAccessAndRefereshTokens(user._id);
 
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
+
     return res
       .status(200)
       .cookie("accessToken", accessToken, cookieOptions)
       .cookie("refreshToken", newRefreshToken, cookieOptions)
       .json({
+        user: loggedInUser,
         accessToken,
         refreshToken: newRefreshToken,
         message: "Access token refreshed",
