@@ -10,6 +10,7 @@ import matchRouter from "./routes/match.routes.js";
 import submissionRouter from "./routes/submission.routes.js";
 import scoreboardRouter from "./routes/scoreboard.routes.js";
 import guildRouter from "./routes/guild.routes.js";
+import leaderboardRouter from "./routes/leaderboard.routes.js";
 import passport from "./utils/passport.js";
 import { ApiError } from "./utils/api-error.js";
 import { sanitizeInput } from "./middlewares/sanitize.middleware.js";
@@ -42,6 +43,7 @@ app.use("/api/matches", matchRouter);
 app.use("/api/submissions", submissionRouter);
 app.use("/api/scoreboard", scoreboardRouter);
 app.use("/api/guilds", guildRouter);
+app.use("/api/leaderboard", leaderboardRouter);
 
 // Basic health check
 app.get("/", (req, res) => {
