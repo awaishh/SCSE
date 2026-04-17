@@ -123,12 +123,14 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
 
   const { accessToken, refreshToken: newRefreshToken } = await generateAccessAndRefereshTokens(user._id);
 
+  const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
+
   return res
     .status(200)
     .cookie("accessToken", accessToken, cookieOptions)
     .cookie("refreshToken", newRefreshToken, cookieOptions)
     .json(
-      new ApiResponse(200, { accessToken, refreshToken: newRefreshToken }, "Access token refreshed")
+      new ApiResponse(200, { user: loggedInUser, accessToken, refreshToken: newRefreshToken }, "Access token refreshed")
     );
 });
 
@@ -139,8 +141,6 @@ export const oauthSuccess = asyncHandler(async (req, res) => {
   res.cookie("accessToken", accessToken, cookieOptions);
   res.cookie("refreshToken", refreshToken, cookieOptions);
 
-  // Redirect to frontend with tokens
-  res.redirect(
-    `${process.env.CLIENT_URL}/auth-success?accessToken=${accessToken}&refreshToken=${refreshToken}`
-  );
+  // Redirect to dashboard. AuthContext will detect cookies on mount.
+  res.redirect(`${process.env.CLIENT_URL}/dashboard`);
 });
