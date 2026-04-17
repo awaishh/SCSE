@@ -48,6 +48,13 @@ async function _goLive(matchId, roomId, io) {
     status: "LIVE",
     startTime: match.startTime,
   });
+
+  // Start inactivity elimination timer for BATTLE_ROYALE matches.
+  // Dynamic import avoids a circular dependency (elimination.service imports endMatch).
+  if (match.gameMode === "BATTLE_ROYALE") {
+    const { startInactivityTimer } = await import("./elimination.service.js");
+    startInactivityTimer(match._id.toString(), roomId.toString(), io);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -142,6 +149,11 @@ export const endMatch = async (matchId, io) => {
 
   match.status = "FINISHED";
   match.endTime = new Date();
+
+  // Stop the inactivity timer if one is running for this match.
+  // Dynamic import avoids a circular dependency (elimination.service imports endMatch).
+  const { stopInactivityTimer } = await import("./elimination.service.js");
+  stopInactivityTimer(matchId.toString());
 
   // Fetch all player states for scoreboard + winner computation
   const playerStates = await PlayerState.find({ matchId: match._id });

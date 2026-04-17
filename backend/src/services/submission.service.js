@@ -4,6 +4,7 @@ import { Submission } from "../models/submission.model.js";
 import { ApiError } from "../utils/api-error.js";
 import { evaluate } from "./judge.service.js";
 import { STAGES, endMatch } from "./match.service.js";
+import { getScoreboard, broadcastScoreboard } from "./scoreboard.service.js";
 
 // ---------------------------------------------------------------------------
 // submit
@@ -111,8 +112,7 @@ export const submit = async (matchId, userId, problemId, language, sourceCode, i
   });
 
   // 11. Broadcast updated scoreboard to the whole room
-  const scoreboard = await getScoreboard(matchId);
-  io.to(match.roomId.toString()).emit("scoreboard:update", scoreboard);
+  await broadcastScoreboard(matchId, match.roomId.toString(), io);
 
   // 12. Auto-end match if every player has been eliminated
   const allPlayerStates = await PlayerState.find({ matchId });
@@ -149,34 +149,6 @@ export const getSubmissionsByUser = async (matchId, userId) => {
   return Submission.find({ matchId, userId }).sort({ submittedAt: -1 });
 };
 
-// ---------------------------------------------------------------------------
-// getScoreboard
-// ---------------------------------------------------------------------------
-
-/**
- * Build a ranked scoreboard for a match.
- * Sort order: currentStage DESC → score DESC → wrongAttempts ASC
- */
-export const getScoreboard = async (matchId) => {
-  const playerStates = await PlayerState.find({ matchId }).populate(
-    "userId",
-    "name avatar"
-  );
-
-  const sorted = [...playerStates].sort((a, b) => {
-    if (b.currentStage !== a.currentStage) return b.currentStage - a.currentStage;
-    if (b.score !== a.score) return b.score - a.score;
-    return a.wrongAttempts - b.wrongAttempts;
-  });
-
-  return sorted.map((ps, index) => ({
-    rank: index + 1,
-    userId: ps.userId,       // populated: { _id, name, avatar }
-    teamId: ps.teamId,
-    currentStage: ps.currentStage,
-    score: ps.score,
-    wrongAttempts: ps.wrongAttempts,
-    isAlive: ps.isAlive,
-    eliminationReason: ps.eliminationReason,
-  }));
-};
+// getScoreboard and broadcastScoreboard are imported from scoreboard.service.js
+// and re-exported here for backwards compatibility with existing consumers.
+export { getScoreboard, broadcastScoreboard };

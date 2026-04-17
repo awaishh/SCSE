@@ -8,6 +8,7 @@ import authRouter from "./routes/auth.routes.js";
 import roomRouter from "./routes/room.routes.js";
 import matchRouter from "./routes/match.routes.js";
 import submissionRouter from "./routes/submission.routes.js";
+import scoreboardRouter from "./routes/scoreboard.routes.js";
 import passport from "./utils/passport.js";
 import { ApiError } from "./utils/api-error.js";
 import { sanitizeInput } from "./middlewares/sanitize.middleware.js";
@@ -38,6 +39,7 @@ app.use("/auth", authRouter);
 app.use("/api/rooms", roomRouter);
 app.use("/api/matches", matchRouter);
 app.use("/api/submissions", submissionRouter);
+app.use("/api/scoreboard", scoreboardRouter);
 
 // Basic health check
 app.get("/", (req, res) => {
