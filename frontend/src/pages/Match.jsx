@@ -203,6 +203,50 @@ const Match = () => {
     };
   }, [socket, connected, matchId, user?._id]);
 
+  // ── Anti-Cheat: Fullscreen & Tab Switching ──
+  useEffect(() => {
+    // Attempt to auto-enter full screen
+    const enterFullscreen = async () => {
+      try {
+        if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+          await document.documentElement.requestFullscreen();
+        }
+      } catch (err) {
+        console.warn("Fullscreen auto-request was blocked by browser. User must click to interact.");
+      }
+    };
+    enterFullscreen();
+
+    // Warn on tab switch or window blur
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        window.alert("⚠️ WARNING: TAB SWITCHING DETECTED ⚠️\n\nYou are in a live match. Switching tabs or hiding the window is logged and may result in disqualification.");
+      }
+    };
+    
+    // Also warn if they exit fullscreen
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        toast("You have exited full screen. Full focus is recommended for fair play.", {
+          icon: "⚠️",
+          style: { background: "#4A0000", color: "#fff", border: "1px solid red" }
+        });
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      // Exit fullscreen if leaving match
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(()=>{});
+      }
+    };
+  }, []);
+
   // ── Timer countdown ──
   useEffect(() => {
     if (timeLeft <= 0) return;

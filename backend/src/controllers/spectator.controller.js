@@ -53,16 +53,16 @@ export const leaveSpectate = asyncHandler(async (req, res) => {
 // ---------------------------------------------------------------------------
 
 /**
- * Get the list of spectators currently watching a match.
+ * Get match details and players for a spectator joining a specific match.
  */
 export const getSpectators = asyncHandler(async (req, res) => {
   const { matchId } = req.params;
 
-  const spectators = await spectatorService.getSpectators(matchId);
+  const matchDetails = await spectatorService.getSpectatorMatchDetails(matchId);
 
   return res
     .status(200)
-    .json(new ApiResponse(200, spectators, "Spectators fetched"));
+    .json(new ApiResponse(200, matchDetails, "Match details fetched"));
 });
 
 // ---------------------------------------------------------------------------

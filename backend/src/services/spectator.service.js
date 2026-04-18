@@ -73,18 +73,48 @@ export const leaveSpectate = async (userId, matchId, io) => {
   return { success: true };
 };
 
-// ---------------------------------------------------------------------------
-// getSpectators
-// ---------------------------------------------------------------------------
-
 /**
- * Return all current spectators for a match, with user info populated.
+ * Return match details and players for a spectator joining a specific match.
  *
  * @param {string} matchId
- * @returns {Promise<Array>}
+ * @returns {Promise<object>}
  */
-export const getSpectators = async (matchId) => {
-  return Spectator.find({ matchId }).populate("userId", "name avatar");
+export const getSpectatorMatchDetails = async (matchId) => {
+  const match = await Match.findById(matchId).populate("players", "name avatar").lean();
+  if (!match) throw new ApiError(404, "Match not found");
+
+  const spectatorCount = await Spectator.countDocuments({ matchId });
+  const playerStates = await PlayerState.find({ matchId })
+    .populate("userId", "name avatar")
+    .lean();
+
+  const BLITZ_MODES = ["BLITZ_1V1", "BLITZ_3V3"];
+  const durationMs = BLITZ_MODES.includes(match.gameMode) ? 15 * 60 * 1000 : 30 * 60 * 1000;
+  const endTime = match.startTime ? new Date(new Date(match.startTime).getTime() + durationMs) : null;
+
+  return {
+    matchId: match._id,
+    gameMode: match.gameMode,
+    status: match.status,
+    startTime: match.startTime,
+    endTime,
+    spectatorCount,
+    players: playerStates.map((ps) => ({
+      userId: ps.userId?._id || ps.userId,
+      name: ps.userId?.name || "Player",
+      avatar: ps.userId?.avatar || null,
+      teamId: ps.teamId,
+      score: ps.score,
+      currentStage: ps.currentStage,
+      wrongAttempts: ps.wrongAttempts,
+    })),
+    scoreboard: playerStates.map((ps) => ({
+      userId: ps.userId?._id || ps.userId,
+      name: ps.userId?.name || "Player",
+      score: ps.score,
+      currentStage: ps.currentStage,
+    }))
+  };
 };
 
 // ---------------------------------------------------------------------------
