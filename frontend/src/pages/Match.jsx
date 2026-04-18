@@ -15,8 +15,8 @@ const fmt = (s) => {
 };
 
 const diffColor = (rating) => {
-  if (!rating) return { bg: "bg-gray-100", text: "text-gray-500" };
-  if (rating <= 1099) return { bg: "bg-emerald-50", text: "text-emerald-600" };
+  if (!rating) return { bg: "bg-[#1C1A2A]", text: "text-[#A9A8B8]" };
+  if (rating <= 1099) return { bg: "bg-[rgba(183,255,42,0.1)]", text: "text-[#B7FF2A]" };
   if (rating <= 1499) return { bg: "bg-amber-50", text: "text-amber-600" };
   return { bg: "bg-red-50", text: "text-red-600" };
 };
@@ -230,16 +230,16 @@ const Match = () => {
       (w) => w?.toString?.() === user?._id?.toString?.()
     );
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center px-4">
+      <div className="min-h-screen bg-[#13121B] font-['Satoshi'] flex items-center justify-center px-4">
         <div className="w-full max-w-md text-center">
           <div className="text-6xl mb-4">{iWon ? "🏆" : "💀"}</div>
-          <h1 className="text-3xl font-bold text-[#111827] tracking-tight mb-2">
+          <h1 className="text-3xl font-bold text-white tracking-tight mb-2">
             {iWon ? "You Won!" : "You Lost"}
           </h1>
-          <p className="text-gray-400 text-sm mb-8">Match complete</p>
+          <p className="text-[#A9A8B8] text-sm mb-8">Match complete</p>
 
           {/* Scoreboard */}
-          <div className="border border-gray-100 rounded-xl overflow-hidden mb-6">
+          <div className="border border-[#302E46] rounded-xl overflow-hidden mb-6">
             {(finished.finalScoreboard || []).map((p, i) => {
               const isWinner = finished.winnerIds?.some(
                 (w) => w?.toString?.() === (p.userId?._id || p.userId)?.toString?.()
@@ -249,22 +249,22 @@ const Match = () => {
                 <div
                   key={i}
                   className={`flex items-center justify-between px-5 py-4 ${
-                    i > 0 ? "border-t border-gray-100" : ""
-                  } ${isMe ? "bg-violet-50" : "bg-white"}`}
+                    i > 0 ? "border-t border-[#302E46]" : ""
+                  } ${isMe ? "bg-violet-50" : "bg-[#181827]"}`}
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-lg">{isWinner ? "🥇" : "🥈"}</span>
                     <div>
-                      <p className="text-sm font-bold text-[#111827]">
+                      <p className="text-sm font-bold text-white">
                         {p.userId?.name || `Player ${i + 1}`}
                         {isMe && <span className="text-violet-500 ml-1">(you)</span>}
                       </p>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-[#A9A8B8]">
                         Q{(p.currentStage || 0) + 1} · {p.wrongAttempts || 0} wrong
                       </p>
                     </div>
                   </div>
-                  <p className="text-sm font-black text-violet-600">{p.score || 0} pts</p>
+                  <p className="text-sm font-black text-[#B7FF2A]">{p.score || 0} pts</p>
                 </div>
               );
             })}
@@ -273,13 +273,13 @@ const Match = () => {
           <div className="flex gap-3">
             <button
               onClick={() => navigate("/lobby")}
-              className="flex-1 py-3 border-2 border-gray-200 text-sm font-semibold rounded-lg hover:border-gray-300 transition-all"
+              className="flex-1 py-3 border-2 border-[#302E46] text-sm font-semibold rounded-lg hover:border-gray-300 transition-all"
             >
               Play Again
             </button>
             <button
               onClick={() => navigate(`/replay/${matchId}`)}
-              className="flex-1 py-3 bg-[#111827] text-white text-sm font-semibold rounded-lg hover:bg-gray-800 transition-all"
+              className="flex-1 py-3 bg-[#B7FF2A] text-[#13121B] text-sm font-semibold rounded-lg hover:bg-[#1C1A2A] transition-all"
             >
               View Replay
             </button>
@@ -290,15 +290,15 @@ const Match = () => {
   }
 
   return (
-    <div className="h-screen bg-white flex flex-col overflow-hidden text-[#111827]">
+    <div className="h-screen bg-[#13121B] font-['Satoshi'] flex flex-col overflow-hidden text-white">
 
       {/* ── Top bar ── */}
-      <div className="h-14 border-b border-gray-100 flex items-center justify-between px-6 shrink-0">
+      <div className="h-14 border-b border-[#302E46] flex items-center justify-between px-6 shrink-0">
         <div className="flex items-center gap-3">
-          <span className="font-bold text-[#111827]">Battle</span>
-          <span className="font-bold text-violet-600">Arena</span>
+          <span className="font-bold text-white">Battle</span>
+          <span className="font-bold text-[#B7FF2A]">Arena</span>
           <span className="text-gray-200 mx-1">|</span>
-          <span className="text-xs font-semibold text-gray-500">Blitz 1v1</span>
+          <span className="text-xs font-semibold text-[#A9A8B8]">Blitz 1v1</span>
           {/* Question progress */}
           <div className="flex items-center gap-1 ml-2">
             {[0, 1, 2].map((i) => (
@@ -306,14 +306,14 @@ const Match = () => {
                 key={i}
                 className={`w-6 h-1.5 rounded-full transition-all ${
                   i < questionIndex
-                    ? "bg-emerald-500"
+                    ? "bg-[rgba(183,255,42,0.1)]0"
                     : i === questionIndex
-                    ? "bg-violet-600"
+                    ? "bg-[#B7FF2A]"
                     : "bg-gray-200"
                 }`}
               />
             ))}
-            <span className="text-xs text-gray-400 ml-1">Q{questionIndex + 1}/3</span>
+            <span className="text-xs text-[#A9A8B8] ml-1">Q{questionIndex + 1}/3</span>
           </div>
         </div>
 
@@ -321,9 +321,9 @@ const Match = () => {
           {/* Timer */}
           {/* Match Global Timer */}
           <div className="flex flex-col items-center gap-1">
-            <span className="text-[10px] uppercase font-bold text-gray-400">Match ends in</span>
+            <span className="text-[10px] uppercase font-bold text-[#A9A8B8]">Match ends in</span>
             <div className={`font-mono font-bold text-lg px-4 py-1.5 rounded-xl ${
-              timeLeft < 60 ? "bg-red-50 text-red-600 animate-pulse" : "bg-gray-100 text-[#111827]"
+              timeLeft < 60 ? "bg-red-50 text-red-600 animate-pulse" : "bg-[#1C1A2A] text-white"
             }`}>
               {fmt(timeLeft)}
             </div>
@@ -332,26 +332,26 @@ const Match = () => {
           {/* Question Interval Timer / Phase */}
           {timeLeft > 0 && questionIndex < 2 && (
             <div className="flex flex-col items-center gap-1">
-              <span className="text-[10px] uppercase font-bold text-gray-400">Round {questionIndex + 1} Timer</span>
-              <div className="bg-violet-50 text-violet-600 font-mono font-bold text-sm px-3 py-1 rounded-lg border border-violet-100">
+              <span className="text-[10px] uppercase font-bold text-[#A9A8B8]">Round {questionIndex + 1} Timer</span>
+              <div className="bg-violet-50 text-[#B7FF2A] font-mono font-bold text-sm px-3 py-1 rounded-lg border border-violet-100">
                 Next Q in: {fmt(timeLeft % 300 || 300)}
               </div>
             </div>
           )}
           {/* Opponent status */}
           {scoreboard.filter((p) => (p.userId?._id || p.userId) !== user?._id).map((p, i) => (
-            <div key={i} className="flex items-center gap-2 text-xs text-gray-500">
+            <div key={i} className="flex items-center gap-2 text-xs text-[#A9A8B8]">
               <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] font-bold">
                 {(p.name || p.userId?.name || "?")[0]?.toUpperCase()}
               </div>
               <span>Q{(p.currentStage || 0) + 1}</span>
               <span className="text-gray-300">·</span>
-              <span className="font-semibold text-[#111827]">{p.score || 0}pts</span>
+              <span className="font-semibold text-white">{p.score || 0}pts</span>
             </div>
           ))}
           <button
             onClick={() => navigate("/lobby")}
-            className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+            className="text-xs text-[#A9A8B8] hover:text-red-500 transition-colors"
           >
             Leave
           </button>
@@ -362,7 +362,7 @@ const Match = () => {
       <div className="flex-1 flex overflow-hidden">
 
         {/* ── Left: Problem ── */}
-        <div className="w-[42%] border-r border-gray-100 overflow-y-auto p-6 space-y-5">
+        <div className="w-[42%] border-r border-[#302E46] overflow-y-auto p-6 space-y-5">
           {problem ? (
             <>
               {/* Title + difficulty */}
@@ -372,36 +372,36 @@ const Match = () => {
                     {problem.difficulty} · {problem.difficultyRating}
                   </span>
                   {problem.tags?.slice(0, 3).map((t) => (
-                    <span key={t} className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                    <span key={t} className="text-xs text-[#A9A8B8] bg-[#1C1A2A] px-2 py-0.5 rounded-full">
                       {t}
                     </span>
                   ))}
                 </div>
-                <h2 className="text-xl font-bold text-[#111827]">{problem.title}</h2>
+                <h2 className="text-xl font-bold text-white">{problem.title}</h2>
               </div>
 
               {/* Description */}
-              <div className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
+              <div className="text-sm text-[#A9A8B8] leading-relaxed whitespace-pre-wrap">
                 {problem.description}
               </div>
 
               {/* Constraints */}
               {problem.constraints && (
-                <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Constraints</p>
-                  <p className="text-xs font-mono text-gray-600 whitespace-pre-wrap">{problem.constraints}</p>
+                <div className="bg-[#1C1A2A] rounded-lg p-4 border border-[#302E46]">
+                  <p className="text-xs font-semibold text-[#A9A8B8] uppercase tracking-wide mb-1">Constraints</p>
+                  <p className="text-xs font-mono text-[#A9A8B8] whitespace-pre-wrap">{problem.constraints}</p>
                 </div>
               )}
 
               {/* Examples */}
               {problem.examples?.length > 0 && (
                 <div className="space-y-3">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Examples</p>
+                  <p className="text-xs font-semibold text-[#A9A8B8] uppercase tracking-wide">Examples</p>
                   {problem.examples.map((ex, i) => (
-                    <div key={i} className="bg-gray-50 rounded-lg p-4 border border-gray-100 font-mono text-xs space-y-1">
-                      <div><span className="text-gray-400">Input: </span><span className="text-[#111827]">{ex.input}</span></div>
-                      <div><span className="text-gray-400">Output: </span><span className="text-emerald-600 font-bold">{ex.output}</span></div>
-                      {ex.explanation && <div className="text-gray-400 font-sans">{ex.explanation}</div>}
+                    <div key={i} className="bg-[#1C1A2A] rounded-lg p-4 border border-[#302E46] font-mono text-xs space-y-1">
+                      <div><span className="text-[#A9A8B8]">Input: </span><span className="text-white">{ex.input}</span></div>
+                      <div><span className="text-[#A9A8B8]">Output: </span><span className="text-[#B7FF2A] font-bold">{ex.output}</span></div>
+                      {ex.explanation && <div className="text-[#A9A8B8] font-sans">{ex.explanation}</div>}
                     </div>
                   ))}
                 </div>
@@ -410,11 +410,11 @@ const Match = () => {
               {/* Visible test cases */}
               {problem.testCases?.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Sample Test Cases</p>
+                  <p className="text-xs font-semibold text-[#A9A8B8] uppercase tracking-wide">Sample Test Cases</p>
                   {problem.testCases.map((tc, i) => (
-                    <div key={i} className="bg-gray-50 rounded-lg p-3 border border-gray-100 font-mono text-xs space-y-1">
-                      <div><span className="text-gray-400">Input: </span><pre className="inline whitespace-pre-wrap text-[#111827]">{tc.input}</pre></div>
-                      <div><span className="text-gray-400">Expected: </span><pre className="inline whitespace-pre-wrap text-emerald-600">{tc.expectedOutput}</pre></div>
+                    <div key={i} className="bg-[#1C1A2A] rounded-lg p-3 border border-[#302E46] font-mono text-xs space-y-1">
+                      <div><span className="text-[#A9A8B8]">Input: </span><pre className="inline whitespace-pre-wrap text-white">{tc.input}</pre></div>
+                      <div><span className="text-[#A9A8B8]">Expected: </span><pre className="inline whitespace-pre-wrap text-[#B7FF2A]">{tc.expectedOutput}</pre></div>
                     </div>
                   ))}
                 </div>
@@ -422,10 +422,10 @@ const Match = () => {
             </>
           ) : (
             <div className="space-y-3">
-              <div className="h-6 bg-gray-100 rounded animate-pulse w-1/3" />
-              <div className="h-4 bg-gray-100 rounded animate-pulse" />
-              <div className="h-4 bg-gray-100 rounded animate-pulse w-4/5" />
-              <div className="h-4 bg-gray-100 rounded animate-pulse w-3/5" />
+              <div className="h-6 bg-[#1C1A2A] rounded animate-pulse w-1/3" />
+              <div className="h-4 bg-[#1C1A2A] rounded animate-pulse" />
+              <div className="h-4 bg-[#1C1A2A] rounded animate-pulse w-4/5" />
+              <div className="h-4 bg-[#1C1A2A] rounded animate-pulse w-3/5" />
             </div>
           )}
         </div>
@@ -434,11 +434,11 @@ const Match = () => {
         <div className="flex-1 flex flex-col overflow-hidden">
 
           {/* Editor toolbar */}
-          <div className="h-12 border-b border-gray-100 flex items-center justify-between px-4 shrink-0">
+          <div className="h-12 border-b border-[#302E46] flex items-center justify-between px-4 shrink-0">
             <select
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
-              className="text-xs font-semibold bg-gray-100 border-0 rounded-lg px-3 py-1.5 text-[#111827] outline-none cursor-pointer"
+              className="text-xs font-semibold bg-[#1C1A2A] border-0 rounded-lg px-3 py-1.5 text-white outline-none cursor-pointer"
             >
               <option value="javascript">JavaScript</option>
               <option value="python">Python</option>
@@ -449,7 +449,7 @@ const Match = () => {
             <button
               onClick={handleSubmit}
               disabled={submitting || !problem}
-              className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-1.5 rounded-lg text-xs font-bold transition-all"
+              className="flex items-center gap-2 bg-[#B7FF2A] hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-1.5 rounded-lg text-xs font-bold transition-all"
             >
               {submitting ? (
                 <>
@@ -483,7 +483,7 @@ const Match = () => {
 
           {/* Result panel */}
           {result && (
-            <div className={`border-t shrink-0 px-5 py-4 ${result.passed ? "bg-emerald-50 border-emerald-100" : "bg-red-50 border-red-100"}`}>
+            <div className={`border-t shrink-0 px-5 py-4 ${result.passed ? "bg-[rgba(183,255,42,0.1)] border-[rgba(183,255,42,0.2)]" : "bg-red-50 border-red-100"}`}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">{result.passed ? "✅" : "❌"}</span>
@@ -491,10 +491,10 @@ const Match = () => {
                     {result.passed ? "Accepted" : "Wrong Answer"}
                   </span>
                   {result.runtime && (
-                    <span className="text-xs text-gray-400">{Math.round(result.runtime)}ms</span>
+                    <span className="text-xs text-[#A9A8B8]">{Math.round(result.runtime)}ms</span>
                   )}
                 </div>
-                <button onClick={() => setResult(null)} className="text-gray-400 hover:text-gray-600 text-xs">
+                <button onClick={() => setResult(null)} className="text-[#A9A8B8] hover:text-[#A9A8B8] text-xs">
                   ✕
                 </button>
               </div>
@@ -505,9 +505,9 @@ const Match = () => {
               )}
               {!result.passed && result.failedTestCase && (
                 <div className="text-xs font-mono space-y-1 mt-2">
-                  <div><span className="text-gray-500">Input: </span>{result.failedTestCase.input}</div>
-                  <div><span className="text-gray-500">Expected: </span><span className="text-emerald-600">{result.failedTestCase.expected}</span></div>
-                  <div><span className="text-gray-500">Got: </span><span className="text-red-600">{result.failedTestCase.got || "(empty)"}</span></div>
+                  <div><span className="text-[#A9A8B8]">Input: </span>{result.failedTestCase.input}</div>
+                  <div><span className="text-[#A9A8B8]">Expected: </span><span className="text-[#B7FF2A]">{result.failedTestCase.expected}</span></div>
+                  <div><span className="text-[#A9A8B8]">Got: </span><span className="text-red-600">{result.failedTestCase.got || "(empty)"}</span></div>
                 </div>
               )}
             </div>

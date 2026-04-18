@@ -32,10 +32,10 @@ const JoinViaQR = () => {
   }, [room]);
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center">
+    <div className="min-h-screen bg-[#13121B] font-['Satoshi'] flex items-center justify-center">
       <div className="text-center">
         <span className="w-6 h-6 border-2 border-violet-600 border-t-transparent rounded-full animate-spin inline-block" />
-        <p className="text-gray-400 text-sm mt-4">Joining room <span className="font-mono font-bold text-[#111827]">{roomCode}</span>...</p>
+        <p className="text-[#A9A8B8] text-sm mt-4">Joining room <span className="font-mono font-bold text-white">{roomCode}</span>...</p>
       </div>
     </div>
   );
