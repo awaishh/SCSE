@@ -2,6 +2,7 @@ import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
 import * as roomService from "../services/room.service.js";
 import * as matchService from "../services/match.service.js";
+import * as matchmakingService from "../services/matchmaking.service.js";
 
 // ---------------------------------------------------------------------------
 // Simple per-socket rate limiter (in-memory, per event type)
@@ -438,6 +439,32 @@ export const initSocket = (server) => {
     });
 
     // -----------------------------------------------------------------------
+    // Matchmaking logic (Public queue)
+    // -----------------------------------------------------------------------
+    socket.on("matchmaking:search", async ({ gameMode } = {}) => {
+      try {
+        if (!gameMode) {
+          return socket.emit("matchmaking:error", { message: "gameMode is required" });
+        }
+        await matchmakingService.joinQueue(socket.user._id, socket.id, gameMode, io);
+        // We don't emit "found" here unless it matched instantly. The service handles emitting "matchmaking:found".
+        socket.emit("matchmaking:searching", { success: true });
+      } catch (err) {
+        console.error("[Matchmaking] Error:", err.message);
+        socket.emit("matchmaking:error", { message: err.message });
+      }
+    });
+
+    socket.on("matchmaking:cancel", ({ gameMode } = {}) => {
+      try {
+        matchmakingService.leaveQueue(socket.user._id, gameMode);
+        socket.emit("matchmaking:cancelled", { success: true });
+      } catch (err) {
+        socket.emit("matchmaking:error", { message: err.message });
+      }
+    });
+
+    // -----------------------------------------------------------------------
     // Legacy channel helpers (kept for backward compatibility)
     // -----------------------------------------------------------------------
     socket.on("join:room", (roomId) => {
@@ -455,6 +482,9 @@ export const initSocket = (server) => {
       console.log(`[Socket] Disconnected: ${socket.id} (user: ${userId})`);
 
       if (!userId) return;
+
+      // Remove from matchmaking queues immediately
+      matchmakingService.leaveQueue(userId);
 
       // Give the user 8 seconds to reconnect (e.g. page refresh)
       // before auto-removing them from WAITING rooms
