@@ -4,7 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import AuthLayout from "../components/auth/AuthLayout";
+import Input from "../components/UI/Input";
+import Button from "../components/UI/Button";
 import OAuthButtons from "../components/auth/OAuthButtons";
 
 const registerSchema = z
@@ -14,34 +15,10 @@ const registerSchema = z
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string(),
   })
-  .refine((d) => d.password === d.confirmPassword, {
+  .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
     path: ["confirmPassword"],
   });
-
-// Reusable field — same style as Login inputs
-const Field = ({ label, type = "text", placeholder, reg, error }) => (
-  <div>
-    <label className="block text-xs font-semibold text-[#374151] mb-1.5 uppercase tracking-wide">
-      {label}
-    </label>
-    <input
-      type={type}
-      placeholder={placeholder}
-      className={`w-full px-4 py-3 rounded-lg border-2 text-sm text-[#0f172a] placeholder-[#9ca3af] bg-white outline-none transition-all duration-200
-        ${error
-          ? "border-red-400 focus:border-red-500"
-          : "border-[#e2e8f0] focus:border-[#6D28D9]"
-        }`}
-      {...reg}
-    />
-    {error && (
-      <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1">
-        <span>⚠</span> {error.message}
-      </p>
-    )}
-  </div>
-);
 
 const Register = () => {
   const { register: registerUser } = useAuth();
@@ -55,10 +32,10 @@ const Register = () => {
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
-      const { confirmPassword, ...payload } = data;
-      await registerUser(payload);
+      const { confirmPassword, ...registerData } = data;
+      await registerUser(registerData);
       navigate("/login");
-    } catch {
+    } catch (error) {
       // handled by toast in context
     } finally {
       setIsSubmitting(false);
@@ -66,74 +43,58 @@ const Register = () => {
   };
 
   return (
-    <AuthLayout>
-      {/* Header — same style as Login */}
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-[#0f172a] tracking-tight">
-          Create account
-        </h2>
-        <p className="text-[#64748b] text-sm mt-2">
-          Join Battle Arena and start competing
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#13121B] px-4 py-12 font-['Satoshi']">
+      <div className="w-full max-w-md bg-[#181827] rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.5)] p-8 border border-[#302E46]">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-[Orbitron] font-black uppercase text-white tracking-wide">Create Account</h1>
+          <p className="text-[#A9A8B8] mt-2 text-sm font-medium">JOIN THE BATTLE ARENA</p>
+        </div>
+
+        <form onSubmit={handleSubmit(onSubmit)} noValidate>
+          <Input
+            label="Full Name"
+            type="text"
+            placeholder="John Doe"
+            error={errors.name}
+            {...register("name")}
+          />
+          <Input
+            label="Email Address"
+            type="email"
+            placeholder="john@example.com"
+            error={errors.email}
+            {...register("email")}
+          />
+          <Input
+            label="Password"
+            type="password"
+            placeholder="••••••••"
+            error={errors.password}
+            {...register("password")}
+          />
+          <Input
+            label="Confirm Password"
+            type="password"
+            placeholder="••••••••"
+            error={errors.confirmPassword}
+            {...register("confirmPassword")}
+          />
+
+          <Button type="submit" loading={isSubmitting}>
+            Create Account
+          </Button>
+        </form>
+
+        <OAuthButtons />
+
+        <p className="text-center mt-6 text-sm text-[#A9A8B8]">
+          ALREADY IN THE ARENA?{" "}
+          <Link to="/login" className="text-[#B7FF2A] hover:text-[#A6F11F] font-black uppercase tracking-wide transition-colors">
+            SIGN IN
+          </Link>
         </p>
       </div>
-
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-        <Field
-          label="Full Name"
-          placeholder="John Doe"
-          reg={register("name")}
-          error={errors.name}
-        />
-        <Field
-          label="Email Address"
-          type="email"
-          placeholder="you@example.com"
-          reg={register("email")}
-          error={errors.email}
-        />
-        <Field
-          label="Password"
-          type="password"
-          placeholder="••••••••"
-          reg={register("password")}
-          error={errors.password}
-        />
-        <Field
-          label="Confirm Password"
-          type="password"
-          placeholder="••••••••"
-          reg={register("confirmPassword")}
-          error={errors.confirmPassword}
-        />
-
-        <div className="pt-2">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full bg-[#6D28D9] hover:bg-[#5b21b6] active:bg-[#4c1d95] disabled:opacity-60 disabled:cursor-not-allowed text-white py-3.5 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-[#6D28D9]/25"
-          >
-            {isSubmitting ? (
-              <>
-                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Creating...
-              </>
-            ) : "Create Account"}
-          </button>
-        </div>
-      </form>
-
-      <OAuthButtons />
-
-      <p className="text-center mt-6 text-sm text-[#64748b]">
-        Already have an account?{" "}
-        <Link
-          to="/login"
-          className="text-[#6D28D9] hover:text-[#5b21b6] font-semibold transition-colors"
-        >
-          Sign in
-        </Link>
-      </p>
-    </AuthLayout>
+    </div>
   );
 };
 
