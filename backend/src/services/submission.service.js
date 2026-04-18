@@ -3,6 +3,7 @@ import { PlayerState } from "../models/playerState.model.js";
 import { Match } from "../models/match.model.js";
 import { executeCode } from "./judge.service.js";
 import { getProblemWithAllTestCases } from "./problem.service.js";
+import { STAGES } from "./match.service.js";
 
 export const submit = async (matchId, userId, problemId, language, sourceCode, io) => {
   // 1. Create a Pending Submission
@@ -130,27 +131,27 @@ const updateGameStateOnAccept = async (matchId, userId, io) => {
 
   if (!match || !playerState) return;
 
+  const finalStageIndex = Math.max(0, STAGES.length - 1);
+  const solvedFinalStage = playerState.currentStage >= finalStageIndex;
+
   // Increment score and advance stage
   playerState.score += 100;
-  playerState.currentStage = Math.min(playerState.currentStage + 1, 4);
+  if (!solvedFinalStage) {
+    playerState.currentStage = Math.min(playerState.currentStage + 1, finalStageIndex);
+  }
   await playerState.save();
 
-  // If Battle Royale — first to solve all stages wins
-  if (match.gameMode === "BATTLE_ROYALE" && playerState.currentStage >= 4) {
+  // First player to finish all stages wins immediately in every mode.
+  if (solvedFinalStage) {
     playerState.status = "FINISHED";
     playerState.finishedAt = new Date();
     await playerState.save();
 
-    const finishedCount = await PlayerState.countDocuments({ matchId, status: "FINISHED" });
-
-    if (finishedCount === 1) {
-      // First to finish — they win!
-      const { endMatch } = await import("./match.service.js");
-      match.winnerIds = [userId];
-      await match.save();
-      await endMatch(matchId.toString(), io);
-    } else {
-      io.to(match.roomId.toString()).emit("match:player-finished", { userId });
-    }
+    const { endMatch } = await import("./match.service.js");
+    match.winnerIds = [userId];
+    await match.save();
+    await endMatch(matchId.toString(), io);
+  } else {
+    io.to(match.roomId.toString()).emit("match:player-finished", { userId });
   }
 };

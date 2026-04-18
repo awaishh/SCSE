@@ -1,4 +1,5 @@
 import { Problem } from "../models/problem.model.js";
+import { Match } from "../models/match.model.js";
 import { ApiError } from "../utils/api-error.js";
 
 /**
@@ -72,6 +73,49 @@ export const getRandomProblemForStage = async (stage = 0) => {
 
   // Fetch full doc with visible test cases only
   const full = await Problem.findById(picked._id);
+  const visible = full.testCases.filter((tc) => !tc.isHidden);
+  return { ...full.toObject(), testCases: visible };
+};
+
+/**
+ * Get a deterministic stage problem for a match.
+ * First request for (match, stage) assigns a random problem and persists it.
+ * Subsequent requests always return the same problem for all players.
+ */
+export const getOrAssignStageProblemForMatch = async (matchId, stage = 0) => {
+  const maxStageIndex = Math.max(0, STAGE_RANGES.length - 1);
+  const safeStage = Number.isFinite(stage)
+    ? Math.max(0, Math.min(maxStageIndex, Number(stage)))
+    : 0;
+
+  const match = await Match.findById(matchId);
+  if (!match) {
+    throw new ApiError(404, "Match not found");
+  }
+
+  const stageKey = String(safeStage);
+  let problemId = match.stageProblemMap?.get?.(stageKey);
+
+  if (!problemId) {
+    const range = STAGE_RANGES[safeStage] || STAGE_RANGES[0];
+    const problems = await Problem.find({
+      difficultyRating: { $gte: range.min, $lte: range.max },
+    }).select("_id");
+
+    if (!problems || problems.length === 0) {
+      throw new ApiError(404, `No problems found for stage ${safeStage}`);
+    }
+
+    problemId = problems[Math.floor(Math.random() * problems.length)]._id;
+    match.stageProblemMap.set(stageKey, problemId);
+    await match.save();
+  }
+
+  const full = await Problem.findById(problemId);
+  if (!full) {
+    throw new ApiError(404, "Assigned stage problem not found");
+  }
+
   const visible = full.testCases.filter((tc) => !tc.isHidden);
   return { ...full.toObject(), testCases: visible };
 };

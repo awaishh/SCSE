@@ -44,6 +44,13 @@ const matchSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: null,
     },
+    // Deterministic stage problems for a match: stageIndex -> problemId
+    stageProblemMap: {
+      type: Map,
+      of: mongoose.Schema.Types.ObjectId,
+      ref: "Problem",
+      default: {},
+    },
   },
   { timestamps: true }
 );

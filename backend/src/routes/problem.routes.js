@@ -20,7 +20,12 @@ router.get("/", asyncHandler(async (req, res) => {
 // GET /api/problems/stage/:stage — fetch a random problem for a match stage (0-4)
 router.get("/stage/:stage", asyncHandler(async (req, res) => {
   const stage = Number(req.params.stage) || 0;
-  const problem = await problemService.getRandomProblemForStage(stage);
+  const { matchId } = req.query;
+
+  const problem = matchId
+    ? await problemService.getOrAssignStageProblemForMatch(matchId, stage)
+    : await problemService.getRandomProblemForStage(stage);
+
   return res.status(200).json(new ApiResponse(200, { problem }, "Stage problem fetched"));
 }));
 

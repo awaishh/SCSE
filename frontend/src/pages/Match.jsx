@@ -24,6 +24,17 @@ const getDifficultyFromRating = (rating) => {
   return "hard";
 };
 
+const getMatchDurationMs = (mode) => {
+  const BLITZ_MODES = new Set(["BLITZ_1V1", "BLITZ_3V3"]);
+  return BLITZ_MODES.has(mode) ? 15 * 60 * 1000 : 30 * 60 * 1000;
+};
+
+const getEntryUserId = (entry) => {
+  if (!entry?.userId) return null;
+  if (typeof entry.userId === "string") return entry.userId;
+  return entry.userId._id || null;
+};
+
 const Match = () => {
   const { matchId } = useParams();
   const navigate = useNavigate();
@@ -33,7 +44,7 @@ const Match = () => {
   const [matchData, setMatchData] = useState(null);
   const [cfProblem, setCfProblem] = useState(null);
   const [currentStage, setCurrentStage] = useState(0);
-  const [code, setCode] = useState("// Write your solution here...\n");
+  const [code, setCode] = useState("");
   const [language, setLanguage] = useState("javascript");
   const [output, setOutput] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,6 +53,8 @@ const Match = () => {
   const [scoreboard, setScoreboard] = useState([]); // live scoreboard data
   const [knockoutBracket, setKnockoutBracket] = useState(null); // knockout bracket data
   const [replayId, setReplayId] = useState(null); // populated when replay is ready
+
+  const totalStages = Math.max(1, Number(matchData?.totalStages || 1));
   
   const editorRef = useRef(null);
   const ydocRef = useRef(null);
@@ -56,15 +69,26 @@ const Match = () => {
       setMatchData(data);
       if (data.endTime) {
         setTimeLeft(Math.max(0, Math.floor((new Date(data.endTime) - new Date()) / 1000)));
+      } else if (data.startTime && data.mode) {
+        const computedEnd = new Date(new Date(data.startTime).getTime() + getMatchDurationMs(data.mode));
+        setTimeLeft(Math.max(0, Math.floor((computedEnd - new Date()) / 1000)));
       }
       // Initialize scoreboard from player data
       if (data.players) {
-        setScoreboard((prev) => prev.length === 0 ? data.players : prev);
+        setScoreboard((prev) => (prev.length === 0 ? data.players : prev));
+        const me = data.players.find((p) => getEntryUserId(p) === user?._id);
+        if (me && Number.isFinite(me.currentStage)) {
+          setCurrentStage(me.currentStage);
+        }
       }
     };
 
     const onScoreboardUpdate = (data) => {
       setScoreboard(data);
+      const me = data.find((p) => getEntryUserId(p) === user?._id);
+      if (me && Number.isFinite(me.currentStage)) {
+        setCurrentStage(me.currentStage);
+      }
     };
 
     const onMatchFinished = (data) => {
@@ -82,6 +106,10 @@ const Match = () => {
     };
 
     const onSubmissionResult = (result) => {
+      // submission:result is broadcast to the room; only show terminal output for self
+      if (result.userId !== user?._id) {
+        return;
+      }
       setOutput(result);
       setIsSubmitting(false);
       if (result.passed) {
@@ -112,6 +140,23 @@ const Match = () => {
     const onReplayReady = ({ replayId: rId }) => {
       setReplayId(rId);
       toast("Replay is ready to watch!", { icon: "🎬" });
+      navigate(`/replay/${matchId}`);
+    };
+
+    const onMatchStateChanged = ({ status, startTime }) => {
+      setMatchData((prev) => (prev ? { ...prev, status } : prev));
+
+      if (status === "COUNTDOWN") {
+        // Keep a visible pre-live countdown in match view.
+        setTimeLeft(10);
+      }
+
+      if (status === "LIVE" && startTime) {
+        const mode = matchData?.mode;
+        if (!mode) return;
+        const computedEnd = new Date(new Date(startTime).getTime() + getMatchDurationMs(mode));
+        setTimeLeft(Math.max(0, Math.floor((computedEnd - new Date()) / 1000)));
+      }
     };
 
     // Another player finished all stages
@@ -126,6 +171,7 @@ const Match = () => {
       "match:update", "scoreboard:update", "match:finished", "match:ended",
       "player:eliminated", "submission:result", "knockout:champion",
       "knockout:next-round", "knockout:updated", "replay:ready", "match:player-finished",
+      "match:state-changed",
     ];
     allEvents.forEach((e) => socket.off(e));
 
@@ -143,19 +189,24 @@ const Match = () => {
     socket.on("knockout:updated", onKnockoutUpdated);
     socket.on("replay:ready", onReplayReady);
     socket.on("match:player-finished", onPlayerFinished);
+    socket.on("match:state-changed", onMatchStateChanged);
 
     return () => {
       allEvents.forEach((e) => socket.off(e));
       socket.emit("match:leave", { matchId });
     };
-  }, [socket, connected, matchId]);
+  }, [socket, connected, matchId, user?._id, navigate, matchData?.mode]);
 
-  // Fetch a problem from the local Problem Bank for the current stage
+  // Fetch the deterministic stage problem for this match + stage
   useEffect(() => {
     const fetchProblem = async () => {
       try {
-        const { data } = await roomAPI.get(`/problems/stage/${currentStage}`);
+        const { data } = await roomAPI.get(`/problems/stage/${currentStage}`, {
+          params: { matchId },
+        });
         setCfProblem(data.data.problem);
+        // Reset output panel when stage changes to avoid stale verdict confusion
+        setOutput(null);
       } catch (e) {
         console.error("Failed to fetch problem:", e);
         setCfProblem({
@@ -168,7 +219,7 @@ const Match = () => {
       }
     };
     fetchProblem();
-  }, [currentStage]);
+  }, [currentStage, matchId]);
 
   // Timer countdown
   useEffect(() => {
@@ -307,7 +358,7 @@ const Match = () => {
           <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
             {/* Stage indicator */}
             <div className="flex items-center gap-2 mb-4">
-              {[0, 1, 2, 3, 4].map((s) => (
+              {Array.from({ length: totalStages }).map((_, s) => (
                 <div
                   key={s}
                   className={`w-8 h-1.5 rounded-full transition-all ${
@@ -315,7 +366,7 @@ const Match = () => {
                   }`}
                 />
               ))}
-              <span className="text-[10px] font-bold text-slate-500 uppercase ml-2">Stage {currentStage + 1}/5</span>
+              <span className="text-[10px] font-bold text-slate-500 uppercase ml-2">Stage {Math.min(currentStage + 1, totalStages)}/{totalStages}</span>
             </div>
 
             <h2 className="text-2xl font-bold text-white mb-2">

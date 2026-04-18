@@ -261,6 +261,7 @@ export const initSocket = (server) => {
           status: match.status,
           startTime: match.startTime,
           endTime,
+          totalStages: matchService.STAGES.length,
           players,
         });
 

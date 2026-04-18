@@ -3,8 +3,9 @@ import { PlayerState } from "../models/playerState.model.js";
 import { Room, GAME_MODES } from "../models/room.model.js";
 import { ApiError } from "../utils/api-error.js";
 
-// Difficulty levels players progress through during a match
-export const STAGES = [1100, 1200, 1300, 1400, 1500];
+// Keep matches minimal to reduce external API usage.
+// One stage means one question per match across all game modes.
+export const STAGES = [1100];
 
 // Team modes where winners are determined by team aggregate score
 const TEAM_MODES = new Set(["TEAM_DUEL_2V2", "TEAM_DUEL_3V3", "ICPC_STYLE"]);
@@ -158,6 +159,17 @@ export const startMatch = async (roomId, hostId, io) => {
   });
   await PlayerState.insertMany(playerStateDocs);
 
+  // Pre-assign deterministic problems for all configured stages so every player
+  // in this match sees identical questions per stage.
+  try {
+    const { getOrAssignStageProblemForMatch } = await import("./problem.service.js");
+    for (let stage = 0; stage < STAGES.length; stage++) {
+      await getOrAssignStageProblemForMatch(match._id.toString(), stage);
+    }
+  } catch (err) {
+    console.error("[match:start] stage problem pre-assignment failed:", err.message);
+  }
+
   // Notify clients that the countdown has begun
   io.to(roomId.toString()).emit("match:state-changed", {
     matchId: match._id,
@@ -199,7 +211,10 @@ export const endMatch = async (matchId, io) => {
 
   let winnerIds = [];
 
-  if (TEAM_MODES.has(match.gameMode)) {
+  if (Array.isArray(match.winnerIds) && match.winnerIds.length > 0) {
+    // Respect a winner pre-set by live gameplay logic (e.g. first finisher).
+    winnerIds = match.winnerIds;
+  } else if (TEAM_MODES.has(match.gameMode)) {
     // --- Team mode: aggregate score per team, winning team members all win ---
     const teamScores = {};
     for (const ps of playerStates) {
@@ -288,6 +303,9 @@ export const endMatch = async (matchId, io) => {
     winnerIds,
     finalScoreboard,
   });
+
+  // Close the room after the match has finished so it cannot be reused.
+  await Room.findByIdAndDelete(match.roomId);
 
   return match;
 };
