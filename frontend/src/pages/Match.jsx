@@ -150,22 +150,20 @@ const Match = () => {
     };
   }, [socket, connected, matchId]);
 
-  // Fetch a Codeforces problem for the current stage
+  // Fetch a problem from the local Problem Bank for the current stage
   useEffect(() => {
     const fetchProblem = async () => {
       try {
-        const { data } = await roomAPI.get(`/problems/codeforces/stage/${currentStage}`);
+        const { data } = await roomAPI.get(`/problems/stage/${currentStage}`);
         setCfProblem(data.data.problem);
       } catch (e) {
-        console.error("Failed to fetch CF problem:", e);
-        // Fallback to default
+        console.error("Failed to fetch problem:", e);
         setCfProblem({
-          name: "Loading Problem...",
-          contestId: 0,
-          index: "A",
-          rating: 800,
+          _id: null,
+          title: "Loading Problem...",
+          description: "Waiting for problem data...",
+          difficultyRating: 800,
           tags: ["implementation"],
-          url: "https://codeforces.com/problemset",
         });
       }
     };
@@ -235,7 +233,7 @@ const Match = () => {
 
   const handleRunCode = () => {
     if (isSpectator) return;
-    if (!cfProblem?._id && !cfProblem?.contestId) {
+    if (!cfProblem?._id) {
       toast.error("Problem not loaded yet");
       return;
     }
@@ -243,7 +241,7 @@ const Match = () => {
     // Send code to backend for execution via Judge0
     socket.emit("submit:code", {
       matchId,
-      problemId: cfProblem._id || `${cfProblem.contestId}${cfProblem.index}`,
+      problemId: cfProblem._id,
       sourceCode: editorRef.current.getValue(),
       language
     });
@@ -321,16 +319,17 @@ const Match = () => {
             </div>
 
             <h2 className="text-2xl font-bold text-white mb-2">
-              {cfProblem?.name || "Loading..."}
+              {cfProblem?.title || cfProblem?.name || "Loading..."}
             </h2>
 
             <div className="flex flex-wrap gap-2 mb-4">
-              {cfProblem?.rating && (() => {
-                const diff = getDifficultyFromRating(cfProblem.rating);
+              {(cfProblem?.difficultyRating || cfProblem?.rating) && (() => {
+                const rating = cfProblem.difficultyRating || cfProblem.rating;
+                const diff = getDifficultyFromRating(rating);
                 const colors = RATING_COLORS[diff];
                 return (
                   <span className={`text-xs font-bold px-2 py-1 rounded border ${colors.bg} ${colors.text} ${colors.border}`}>
-                    {colors.label} ({cfProblem.rating})
+                    {colors.label} ({rating})
                   </span>
                 );
               })()}
@@ -346,23 +345,45 @@ const Match = () => {
             </div>
 
             <div className="prose prose-invert prose-sm max-w-none text-slate-300 space-y-4">
+              {/* Problem description */}
               <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
-                <p className="text-sm text-slate-400 mb-3">
-                  Solve this problem on Codeforces. Read the full statement, then write your solution in the editor.
-                </p>
-                <p className="text-xs text-slate-500 mb-1">Problem ID: {cfProblem?.contestId}{cfProblem?.index}</p>
-                <p className="text-xs text-slate-500">Solved by {cfProblem?.solvedCount?.toLocaleString() || "—"} users on CF</p>
+                <p className="text-sm text-slate-300 whitespace-pre-wrap">{cfProblem?.description || "Loading problem..."}</p>
               </div>
 
-              <a
-                href={cfProblem?.url || "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 text-violet-400 hover:text-violet-300 text-sm font-semibold transition-colors no-underline"
-              >
-                <ExternalLink className="w-4 h-4" />
-                Read Full Problem on Codeforces →
-              </a>
+              {/* Constraints */}
+              {cfProblem?.constraints && (
+                <div className="bg-slate-800/30 p-3 rounded-lg border border-slate-700/50">
+                  <p className="text-xs font-bold text-slate-500 uppercase mb-1">Constraints</p>
+                  <p className="text-xs text-slate-400 font-mono">{cfProblem.constraints}</p>
+                </div>
+              )}
+
+              {/* Examples */}
+              {cfProblem?.examples?.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-slate-500 uppercase">Examples</p>
+                  {cfProblem.examples.map((ex, i) => (
+                    <div key={i} className="bg-slate-800/50 p-3 rounded border border-slate-700 font-mono text-xs">
+                      <div className="mb-2"><span className="text-slate-500">Input: </span><span className="text-emerald-400">{ex.input}</span></div>
+                      <div><span className="text-slate-500">Output: </span><span className="text-amber-400">{ex.output}</span></div>
+                      {ex.explanation && <div className="mt-1 text-slate-500 font-sans">({ex.explanation})</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Visible test cases (from local Problem Bank) */}
+              {cfProblem?.testCases?.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-slate-500 uppercase">Sample Test Cases</p>
+                  {cfProblem.testCases.map((tc, i) => (
+                    <div key={i} className="bg-slate-800/50 p-3 rounded border border-slate-700 font-mono text-xs">
+                      <div className="mb-1"><span className="text-slate-500">Input: </span><pre className="inline text-emerald-400 whitespace-pre-wrap">{tc.input}</pre></div>
+                      <div><span className="text-slate-500">Output: </span><pre className="inline text-amber-400 whitespace-pre-wrap">{tc.expectedOutput}</pre></div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

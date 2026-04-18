@@ -1,0 +1,13 @@
+{
+  "name": "scse-yjs-server",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "y-websocket": "^1.5.4",
+    "ws": "^8.16.0",
+    "yjs": "^13.6.0"
+  }
+}
