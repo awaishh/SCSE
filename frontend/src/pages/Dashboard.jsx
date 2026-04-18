@@ -62,6 +62,9 @@ const Dashboard = () => {
             <Link to="/guild" className="px-4 py-2 rounded-full text-xs uppercase tracking-[0.16em] font-bold bg-[#1b1a29] hover:bg-[#232137] transition-colors text-[#d7d5e3]">
               guild
             </Link>
+            <Link to="/spectate" className="px-4 py-2 rounded-full text-xs uppercase tracking-[0.16em] font-bold bg-[rgba(183,255,42,0.1)] hover:bg-[rgba(183,255,42,0.18)] transition-colors text-[#B7FF2A]">
+              watch live
+            </Link>
           </div>
         </section>
 

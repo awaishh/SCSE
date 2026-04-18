@@ -365,6 +365,14 @@ export const endMatch = async (matchId, io) => {
     finalScoreboard,
   });
 
+  // Clean up all spectator records for this match
+  try {
+    const { cleanupSpectators } = await import("./spectator.service.js");
+    await cleanupSpectators(matchId.toString());
+  } catch (e) {
+    console.error("[endMatch] spectator cleanup failed:", e.message);
+  }
+
   // Close the room after the match has finished so it cannot be reused.
   await Room.findByIdAndDelete(match.roomId);
 

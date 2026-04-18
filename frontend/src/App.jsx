@@ -28,6 +28,7 @@ import JoinViaQR from "./pages/JoinViaQR";
 import Guild from "./pages/Guild";
 import JoinGuildViaLink from "./pages/JoinGuildViaLink";
 import Leaderboard from "./pages/Leaderboard";
+import Spectate from "./pages/Spectate";
 import NotFound from "./pages/NotFound";
 
 function App() {
@@ -65,6 +66,8 @@ function App() {
                     <Route path="/guild" element={<Guild />} />
                     <Route path="/guild/join/:guildId" element={<JoinGuildViaLink />} />
                     <Route path="/leaderboard" element={<Leaderboard />} />
+                    <Route path="/spectate" element={<Spectate />} />
+                    <Route path="/spectate/:matchId" element={<Spectate />} />
                   </Route>
 
                   <Route path="*" element={<NotFound />} />

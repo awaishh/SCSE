@@ -75,6 +75,9 @@ export const initSocket = (server) => {
   // Track disconnect timers for grace-period reconnection
   const disconnectTimers = new Map();
 
+  // Track which player each spectator is watching: spectatorSocketId → { matchId, targetUserId }
+  const spectatorTargets = new Map();
+
   // --- Connection handler ---
   io.on("connection", (socket) => {
     const userId = socket.user?._id;
@@ -98,6 +101,8 @@ export const initSocket = (server) => {
       "match:start": 2,
       "match:end": 2,
       "match:join": 5,
+      "spectate:watch-player": 5,
+      "spectate:stop-watching": 5,
       _default: 15,
     };
 
@@ -403,6 +408,21 @@ export const initSocket = (server) => {
         const { submit } = await import("../services/submission.service.js");
         const submission = await submit(matchId, socket.user._id, problemId, language, sourceCode, io);
         socket.emit("submit:ack", { submissionId: submission._id, verdict: submission.verdict });
+
+        // Relay submission result to spectators watching this player
+        for (const [specSocketId, target] of spectatorTargets.entries()) {
+          if (
+            target.matchId === matchId.toString() &&
+            target.targetUserId === socket.user._id.toString()
+          ) {
+            io.to(specSocketId).emit("spectate:submission-result", {
+              userId: socket.user._id,
+              verdict: submission.verdict,
+              passed: submission.verdict === "Accepted",
+              timestamp: Date.now(),
+            });
+          }
+        }
       } catch (err) {
         socket.emit("submit:error", { message: err.message });
       }
@@ -429,6 +449,21 @@ export const initSocket = (server) => {
             { sourceCode, language },
             match.startTime
           );
+
+          // Relay code to any spectators watching this player
+          for (const [specSocketId, target] of spectatorTargets.entries()) {
+            if (
+              target.matchId === matchId &&
+              target.targetUserId === socket.user._id.toString()
+            ) {
+              io.to(specSocketId).emit("spectate:code-update", {
+                userId: socket.user._id,
+                sourceCode,
+                language,
+                timestamp: Date.now(),
+              });
+            }
+          }
         }
       } catch (err) {
         // Silent error for sync events to prevent crashing
@@ -474,6 +509,93 @@ export const initSocket = (server) => {
     });
 
     // -----------------------------------------------------------------------
+    // Spectate: Watch Player (spectator picks which player to watch live)
+    // Client emits { matchId, targetUserId }
+    // Server starts relaying that player's code:sync → spectate:code-update
+    // -----------------------------------------------------------------------
+    socket.on("spectate:watch-player", async ({ matchId, targetUserId } = {}) => {
+      try {
+        if (!matchId || !targetUserId) {
+          return socket.emit("spectate:error", { message: "matchId and targetUserId are required" });
+        }
+
+        const { Match } = await import("../models/match.model.js");
+        const match = await Match.findById(matchId);
+        if (!match || match.status !== "LIVE") {
+          return socket.emit("spectate:error", { message: "Match is not live" });
+        }
+
+        // Verify target is a participant
+        const isParticipant = match.players.some(
+          (p) => (p._id || p).toString() === targetUserId.toString()
+        );
+        if (!isParticipant) {
+          return socket.emit("spectate:error", { message: "Target player not in this match" });
+        }
+
+        // Register this spectator's target
+        spectatorTargets.set(socket.id, {
+          matchId: matchId.toString(),
+          targetUserId: targetUserId.toString(),
+        });
+
+        // Send the target player's latest code snapshot from replay events
+        try {
+          const { Replay } = await import("../models/replay.model.js");
+          const replay = await Replay.findOne({ matchId });
+          if (replay) {
+            // Find the most recent code_update event from this player
+            const latestUpdate = [...replay.events]
+              .reverse()
+              .find(
+                (ev) =>
+                  ev.type === "code_update" &&
+                  (ev.userId?.toString?.() || ev.userId) === targetUserId.toString()
+              );
+            if (latestUpdate?.data) {
+              socket.emit("spectate:code-update", {
+                userId: targetUserId,
+                sourceCode: latestUpdate.data.sourceCode,
+                language: latestUpdate.data.language,
+                timestamp: Date.now(),
+              });
+            }
+          }
+        } catch (e) {
+          // Non-critical: spectator just won't see initial code
+          console.error("[spectate] initial snapshot failed:", e.message);
+        }
+
+        // Also send which question the target is on
+        const { PlayerState } = await import("../models/playerState.model.js");
+        const ps = await PlayerState.findOne({ matchId, userId: targetUserId });
+        if (ps) {
+          socket.emit("spectate:player-state", {
+            userId: targetUserId,
+            currentStage: ps.currentStage,
+            score: ps.score,
+            wrongAttempts: ps.wrongAttempts,
+          });
+        }
+
+        socket.emit("spectate:watching", { success: true, targetUserId });
+        console.log(`[Spectate] ${socket.user._id} watching player ${targetUserId} in match ${matchId}`);
+      } catch (err) {
+        console.error("[spectate:watch-player] Error:", err.message);
+        socket.emit("spectate:error", { message: err.message });
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // Spectate: Stop Watching
+    // Client emits {} → server removes spectator target mapping
+    // -----------------------------------------------------------------------
+    socket.on("spectate:stop-watching", () => {
+      spectatorTargets.delete(socket.id);
+      socket.emit("spectate:stopped", { success: true });
+    });
+
+    // -----------------------------------------------------------------------
     // Disconnect — uses a grace period so page refreshes don't kick the user
     // -----------------------------------------------------------------------
     socket.on("disconnect", async () => {
@@ -483,6 +605,17 @@ export const initSocket = (server) => {
 
       // Remove from matchmaking queues immediately
       matchmakingService.leaveQueue(userId);
+
+      // Clean up spectator target mapping
+      spectatorTargets.delete(socket.id);
+
+      // Clean up spectator DB records
+      try {
+        const { removeUserSpectating } = await import("../services/spectator.service.js");
+        await removeUserSpectating(userId, io);
+      } catch (e) {
+        console.error("[Socket] Spectator cleanup failed:", e.message);
+      }
 
       // Give the user 8 seconds to reconnect (e.g. page refresh)
       // before auto-removing them from rooms and ending live matches

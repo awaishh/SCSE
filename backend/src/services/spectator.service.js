@@ -1,5 +1,7 @@
 import { Match } from "../models/match.model.js";
 import { Spectator } from "../models/spectator.model.js";
+import { PlayerState } from "../models/playerState.model.js";
+import { Room, GAME_MODES } from "../models/room.model.js";
 import { ApiError } from "../utils/api-error.js";
 
 // ---------------------------------------------------------------------------
@@ -97,4 +99,99 @@ export const getSpectators = async (matchId) => {
  */
 export const getSpectatorCount = async (matchId) => {
   return Spectator.countDocuments({ matchId });
+};
+
+// ---------------------------------------------------------------------------
+// getLiveMatches
+// ---------------------------------------------------------------------------
+
+/**
+ * Return all currently LIVE matches with player info and spectator counts.
+ * Used for the "Browse Live Matches" UI.
+ *
+ * @returns {Promise<Array>}
+ */
+export const getLiveMatches = async () => {
+  const matches = await Match.find({ status: "LIVE" })
+    .populate("players", "name avatar")
+    .sort({ startTime: -1 })
+    .lean();
+
+  const BLITZ_MODES = ["BLITZ_1V1", "BLITZ_3V3"];
+
+  const results = await Promise.all(
+    matches.map(async (match) => {
+      const spectatorCount = await Spectator.countDocuments({ matchId: match._id });
+
+      // Get player states for names and scores
+      const playerStates = await PlayerState.find({ matchId: match._id })
+        .populate("userId", "name avatar")
+        .lean();
+
+      const durationMs = BLITZ_MODES.includes(match.gameMode)
+        ? 15 * 60 * 1000
+        : 30 * 60 * 1000;
+      const endTime = match.startTime
+        ? new Date(new Date(match.startTime).getTime() + durationMs)
+        : null;
+
+      return {
+        matchId: match._id,
+        gameMode: match.gameMode,
+        status: match.status,
+        startTime: match.startTime,
+        endTime,
+        spectatorCount,
+        players: playerStates.map((ps) => ({
+          userId: ps.userId?._id || ps.userId,
+          name: ps.userId?.name || "Player",
+          avatar: ps.userId?.avatar || null,
+          teamId: ps.teamId,
+          score: ps.score,
+          currentStage: ps.currentStage,
+        })),
+      };
+    })
+  );
+
+  return results;
+};
+
+// ---------------------------------------------------------------------------
+// cleanupSpectators
+// ---------------------------------------------------------------------------
+
+/**
+ * Remove all spectator records for a match (called when match ends).
+ *
+ * @param {string} matchId
+ * @returns {Promise<number>} Number of records deleted
+ */
+export const cleanupSpectators = async (matchId) => {
+  const result = await Spectator.deleteMany({ matchId });
+  return result.deletedCount;
+};
+
+// ---------------------------------------------------------------------------
+// removeUserSpectating
+// ---------------------------------------------------------------------------
+
+/**
+ * Remove all spectator records for a user (called on disconnect).
+ *
+ * @param {string} userId
+ * @param {import("socket.io").Server} io
+ */
+export const removeUserSpectating = async (userId, io) => {
+  const records = await Spectator.find({ userId });
+  for (const rec of records) {
+    const match = await Match.findById(rec.matchId);
+    if (match) {
+      io.to(match.roomId.toString()).emit("spectator:left", {
+        userId,
+        matchId: rec.matchId.toString(),
+      });
+    }
+  }
+  await Spectator.deleteMany({ userId });
 };

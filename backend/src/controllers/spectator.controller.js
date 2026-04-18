@@ -64,3 +64,18 @@ export const getSpectators = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, spectators, "Spectators fetched"));
 });
+
+// ---------------------------------------------------------------------------
+// getLiveMatches  GET /api/spectator/live
+// ---------------------------------------------------------------------------
+
+/**
+ * Get all currently live matches available for spectating.
+ */
+export const getLiveMatches = asyncHandler(async (req, res) => {
+  const matches = await spectatorService.getLiveMatches();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, matches, "Live matches fetched"));
+});

@@ -4,12 +4,16 @@ import {
   joinSpectate,
   leaveSpectate,
   getSpectators,
+  getLiveMatches,
 } from "../controllers/spectator.controller.js";
 
 const router = Router();
 
 // All spectator routes require authentication
 router.use(verifyJWT);
+
+// GET  /api/spectator/live  — list all live matches available for spectating
+router.get("/live", getLiveMatches);
 
 // POST /api/spectator/join  — start spectating a live match
 router.post("/join", joinSpectate);
