@@ -81,6 +81,7 @@ const Match = () => {
   const [scoreboard, setScoreboard] = useState([]);
   const [timeLeft, setTimeLeft] = useState(0);
   const [finished, setFinished] = useState(null); // { winnerIds, finalScoreboard }
+  const [focusWarningOpen, setFocusWarningOpen] = useState(false);
 
   const editorRef = useRef(null);
   const timerRef = useRef(null);
@@ -220,15 +221,14 @@ const Match = () => {
     // Warn on tab switch or window blur
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
-        window.alert("⚠️ WARNING: TAB SWITCHING DETECTED ⚠️\n\nYou are in a live match. Switching tabs or hiding the window is logged and may result in disqualification.");
+        setFocusWarningOpen(true);
       }
     };
     
     // Also warn if they exit fullscreen
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement) {
-        toast("You have exited full screen. Full focus is recommended for fair play.", {
-          icon: "⚠️",
+        toast("Exited full screen. Full focus is recommended for fair play.", {
           style: { background: "#4A0000", color: "#fff", border: "1px solid red" }
         });
       }
@@ -289,6 +289,8 @@ const Match = () => {
   const myState = scoreboard.find((p) => (p.userId?._id || p.userId) === user?._id);
 
   const isTeamMode = TEAM_MODES.includes(matchData?.gameMode);
+
+  const dismissFocusWarning = () => setFocusWarningOpen(false);
 
   // ── Finished overlay ──
   if (finished) {
@@ -408,6 +410,48 @@ const Match = () => {
 
   return (
     <div className="h-screen bg-[#13121B] font-['Rajdhani'] flex flex-col overflow-hidden text-white" style={{ fontFamily: "'Rajdhani', 'Segoe UI', sans-serif" }}>
+      {focusWarningOpen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center px-4 bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-[#2f2b45] bg-[#141320] shadow-[0_20px_60px_rgba(0,0,0,0.45)] overflow-hidden">
+            <div className="border-b border-[#2f2b45] px-5 py-4 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.24em] text-[#8f8ca3]">focus warning</p>
+                <h2 className="text-lg font-[Oxanium] font-black uppercase tracking-[0.08em] text-white mt-1">tab switch detected</h2>
+              </div>
+              <span className="text-[10px] uppercase tracking-[0.18em] text-[#B7FF2A] border border-[#B7FF2A]/30 rounded-full px-2 py-1">live match</span>
+            </div>
+
+            <div className="px-5 py-5 space-y-4">
+              <p className="text-sm text-[#cfcde0] leading-relaxed">
+                You are in a live match. Leaving this window is logged and can affect fair play handling.
+              </p>
+
+              <div className="rounded-xl border border-[#2f2b45] bg-[#11101a] p-3">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-[#8f8ca3] mb-2">keep focus</p>
+                <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.14em]">
+                  <span className="px-2 py-1 rounded-md bg-[rgba(183,255,42,0.1)] text-[#B7FF2A]">return to match</span>
+                  <span className="px-2 py-1 rounded-md bg-[#1b1a29] text-[#d7d5e3]">avoid switching tabs</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  onClick={dismissFocusWarning}
+                  className="flex-1 rounded-full border border-[#2f2b45] bg-transparent px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.16em] text-[#d7d5e3] transition-colors hover:bg-[#1b1a29]"
+                >
+                  acknowledge
+                </button>
+                <button
+                  onClick={() => navigate("/lobby")}
+                  className="flex-1 rounded-full bg-[#B7FF2A] px-4 py-2.5 text-xs font-black uppercase tracking-[0.16em] text-[#13121B] transition-colors hover:bg-[#A6F11F]"
+                >
+                  leave match
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Top bar ── */}
       <div className="h-14 border-b border-[#302E46] flex items-center justify-between px-6 shrink-0">
