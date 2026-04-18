@@ -13,6 +13,7 @@ import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import VerifyReset from "./pages/VerifyReset";
 import ResetPassword from "./pages/ResetPassword";
+import Landing from "./pages/Landing";
 
 // Protected pages
 import Dashboard from "./pages/Dashboard";
@@ -47,9 +48,11 @@ function App() {
                   <Route path="/reset-password" element={<ResetPassword />} />
                 </Route>
 
+                {/* ── Public Landing ── */}
+                <Route path="/" element={<Landing />} />
+
                 {/* ── Protected ── */}
                 <Route element={<ProtectedRoute />}>
-                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/setup-2fa" element={<Setup2FA />} />
                   <Route path="/lobby" element={<Lobby />} />
