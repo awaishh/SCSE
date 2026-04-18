@@ -1,15 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import roomAPI from "../services/roomAPI";
-import Lenis from "lenis";
 import gsap from "gsap";
 
 const Dashboard = () => {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const [stats, setStats] = useState(null);
-  const [loggingOut, setLoggingOut] = useState(false);
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -19,15 +16,6 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
-    const lenis = new Lenis({ smoothTouch: true, duration: 1.2 });
-    function raf(time) {
-      lenis.raf(time);
-      requestAnimationFrame(raf);
-    }
-    requestAnimationFrame(raf);
-    gsap.ticker.add((time) => lenis.raf(time * 1000));
-    gsap.ticker.lagSmoothing(0);
-
     const ctx = gsap.context(() => {
       gsap.from(".dash-anim", {
         y: 40,
@@ -40,171 +28,124 @@ const Dashboard = () => {
 
     return () => {
       ctx.revert();
-      lenis.destroy();
-      gsap.ticker.remove((time) => lenis.raf(time * 1000));
     };
   }, []);
 
-  const handleLogout = async () => {
-    setLoggingOut(true);
-    await logout();
-    navigate("/login");
-  };
-
   const StatBox = ({ label, value, sub }) => (
-    <div className="bg-[#181827] border border-[#302E46] rounded-xl p-5 shadow-[0_10px_20px_rgba(0,0,0,0.3)]">
-      <p className="text-xs font-semibold text-[#A9A8B8] uppercase tracking-wide mb-1 transition-colors">{label}</p>
-      <p className="text-2xl font-black text-white">{value}</p>
-      {sub && <p className="text-xs text-[#B7FF2A] mt-0.5 font-semibold">{sub}</p>}
+    <div className="px-4 py-3">
+      <p className="text-[10px] font-semibold text-[#8f8ca3] uppercase tracking-[0.22em] mb-1">{label}</p>
+      <p className="text-3xl font-black text-white leading-none">{value}</p>
+      {sub && <p className="text-xs text-[#B7FF2A] mt-2 font-semibold uppercase tracking-[0.16em]">{sub}</p>}
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#13121B] text-white font-['Satoshi']" ref={containerRef}>
-      {/* Nav */}
-      <nav className="border-b border-[#302E46] px-8 py-5 flex justify-between items-center bg-[#181827]">
-        <div className="flex items-center gap-2">
-          <span className="font-[Orbitron] font-black tracking-widest text-[#B7FF2A] text-xl">KRYPTCODE</span>
-          <span className="font-[Orbitron] font-bold tracking-widest text-white text-xl">ARENA</span>
-        </div>
-        <div className="flex items-center gap-6">
-          <span className="text-sm font-semibold text-[#A9A8B8] hidden sm:block tracking-wide uppercase">
-            {user?.name}
-          </span>
-          <button
-            onClick={handleLogout}
-            disabled={loggingOut}
-            className="text-xs text-[#A9A8B8] border border-[#302E46] px-4 py-2 rounded-full hover:text-white hover:border-[#A9A8B8] transition-all font-bold tracking-widest disabled:opacity-50 uppercase"
-          >
-            {loggingOut ? "LEAVING..." : "LOGOUT"}
-          </button>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-[#13121B] text-white font-['Rajdhani'] relative overflow-hidden" ref={containerRef}>
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_18%_20%,rgba(183,255,42,0.1),transparent_35%),radial-gradient(circle_at_85%_78%,rgba(0,225,255,0.08),transparent_32%)]" />
+      <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14 space-y-10">
 
-      <div className="max-w-3xl mx-auto px-6 py-12 space-y-10">
+        <section className="dash-anim grid gap-8 lg:grid-cols-[1.6fr_1fr] items-end border-b border-[#2f2b45] pb-8">
+          <div>
+            <p className="text-[10px] font-semibold text-[#8f8ca3] uppercase tracking-[0.24em] mb-4">command center</p>
+            <h1 className="text-4xl sm:text-5xl font-[Oxanium] font-black tracking-tight uppercase leading-[0.92]">
+              {user?.name || "Player"}
+            </h1>
+            <p className="text-sm text-[#8e8aa1] mt-3 max-w-[60ch]">{user?.email}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 lg:justify-end">
+            <Link to="/match-history" className="px-4 py-2 rounded-full text-xs uppercase tracking-[0.16em] font-bold bg-[#1b1a29] hover:bg-[#232137] transition-colors text-[#d7d5e3]">
+              history
+            </Link>
+            <Link to="/leaderboard" className="px-4 py-2 rounded-full text-xs uppercase tracking-[0.16em] font-bold bg-[#1b1a29] hover:bg-[#232137] transition-colors text-[#d7d5e3]">
+              rankings
+            </Link>
+            <Link to="/guild" className="px-4 py-2 rounded-full text-xs uppercase tracking-[0.16em] font-bold bg-[#1b1a29] hover:bg-[#232137] transition-colors text-[#d7d5e3]">
+              guild
+            </Link>
+          </div>
+        </section>
 
-        {/* Welcome */}
-        <div className="dash-anim">
-          <p className="text-xs font-bold text-[#A9A8B8] uppercase tracking-widest mb-2">Welcome Back to the Arena</p>
-          <h1 className="text-4xl font-[Orbitron] font-black text-white tracking-widest uppercase">{user?.name}</h1>
-          <p className="text-[#6D6A7E] text-sm mt-1">{user?.email}</p>
-        </div>
-
-        {/* Game Mode Cards */}
-        <div className="dash-anim">
-          <p className="text-xs font-bold font-[Orbitron] text-[#A9A8B8] uppercase tracking-widest mb-4">Choose Your Battle</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Link
-              to="/lobby?mode=BLITZ_1V1"
-              className="group relative bg-[#181827] border border-[#302E46] hover:border-[#B7FF2A] rounded-xl p-6 transition-all overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-[#B7FF2A]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative">
-                <p className="text-3xl mb-3">⚔️</p>
-                <p className="text-sm font-[Orbitron] font-black text-white tracking-widest uppercase">BLITZ 1V1</p>
-                <p className="text-[10px] text-[#A9A8B8] mt-1 font-semibold">Solo · 2 Players · 15 min</p>
+        <section className="dash-anim">
+          <p className="text-[10px] font-semibold text-[#8f8ca3] uppercase tracking-[0.24em] mb-4">choose your battle</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Link to="/lobby?mode=BLITZ_1V1" className="group relative overflow-hidden rounded-3xl p-[1px] bg-gradient-to-br from-[#4f4a67] to-[#222033] hover:from-[#b7ff2a]/80 hover:to-[#3b3652] transition-all duration-300">
+              <div className="rounded-[calc(1.5rem-1px)] bg-[#181827]/95 p-6 min-h-[170px]">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-[#8f8ca3]">solo queue</p>
+                <p className="text-2xl font-[Oxanium] font-black mt-3">BLITZ 1V1</p>
+                <p className="text-xs text-[#9f9ab4] mt-3">Two players. Fast rounds. Pure speed and accuracy.</p>
               </div>
             </Link>
-            <Link
-              to="/lobby?mode=TEAM_DUEL_2V2"
-              className="group relative bg-[#181827] border border-[#302E46] hover:border-[#B7FF2A] rounded-xl p-6 transition-all overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-[#B7FF2A]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative">
-                <p className="text-3xl mb-3">🤝</p>
-                <p className="text-sm font-[Orbitron] font-black text-white tracking-widest uppercase">TEAM 2V2</p>
-                <p className="text-[10px] text-[#A9A8B8] mt-1 font-semibold">Teams · 4 Players · 30 min</p>
+            <Link to="/lobby?mode=TEAM_DUEL_2V2" className="group relative overflow-hidden rounded-3xl p-[1px] bg-gradient-to-br from-[#4f4a67] to-[#222033] hover:from-[#b7ff2a]/80 hover:to-[#3b3652] transition-all duration-300">
+              <div className="rounded-[calc(1.5rem-1px)] bg-[#181827]/95 p-6 min-h-[170px]">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-[#8f8ca3]">squad mode</p>
+                <p className="text-2xl font-[Oxanium] font-black mt-3">TEAM 2V2</p>
+                <p className="text-xs text-[#9f9ab4] mt-3">Coordinate with one teammate and outsolve the other side.</p>
               </div>
             </Link>
-            <Link
-              to="/lobby?mode=TEAM_DUEL_3V3"
-              className="group relative bg-[#181827] border border-[#302E46] hover:border-[#B7FF2A] rounded-xl p-6 transition-all overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-[#B7FF2A]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="relative">
-                <p className="text-3xl mb-3">🏟️</p>
-                <p className="text-sm font-[Orbitron] font-black text-white tracking-widest uppercase">TEAM 3V3</p>
-                <p className="text-[10px] text-[#A9A8B8] mt-1 font-semibold">Teams · 6 Players · 30 min</p>
+            <Link to="/lobby?mode=TEAM_DUEL_3V3" className="group relative overflow-hidden rounded-3xl p-[1px] bg-gradient-to-br from-[#4f4a67] to-[#222033] hover:from-[#b7ff2a]/80 hover:to-[#3b3652] transition-all duration-300">
+              <div className="rounded-[calc(1.5rem-1px)] bg-[#181827]/95 p-6 min-h-[170px]">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-[#8f8ca3]">pro circuit</p>
+                <p className="text-2xl font-[Oxanium] font-black mt-3">TEAM 3V3</p>
+                <p className="text-xs text-[#9f9ab4] mt-3">Six-player tactical battles designed for high pressure play.</p>
               </div>
             </Link>
           </div>
-        </div>
+        </section>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 dash-anim">
-          <StatBox
-            label="Rating"
-            value={stats?.global?.rating ?? user?.rating ?? 1000}
-            sub={stats?.global?.rankTier || "Silver Tier"}
-          />
-          <StatBox
-            label="Matches"
-            value={stats?.totalMatches ?? user?.matchCount ?? 0}
-          />
-          <StatBox
-            label="Wins"
-            value={stats?.totalWins ?? 0}
-          />
-          <StatBox
-            label="Win Rate"
-            value={`${stats?.winRate ?? 0}%`}
-          />
-        </div>
+        <section className="dash-anim rounded-3xl p-[1px] bg-gradient-to-r from-[#3f3a56] to-[#262337]">
+          <div className="rounded-[calc(1.5rem-1px)] bg-[#171624]/95 grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-[#2f2b45]">
+            <StatBox
+              label="Rating"
+              value={stats?.global?.rating ?? user?.rating ?? 1000}
+              sub={stats?.global?.rankTier || "Silver Tier"}
+            />
+            <StatBox label="Matches" value={stats?.totalMatches ?? user?.matchCount ?? 0} />
+            <StatBox label="Wins" value={stats?.totalWins ?? 0} />
+            <StatBox label="Win Rate" value={`${stats?.winRate ?? 0}%`} />
+          </div>
+        </section>
 
-        {/* Quick links */}
-        <div className="grid grid-cols-3 gap-4 dash-anim">
-          <Link to="/match-history" className="bg-[#181827] border border-[#302E46] rounded-xl p-5 text-center hover:border-[#B7FF2A] transition-all group">
-            <p className="text-2xl mb-2 group-hover:scale-110 transition-transform">📋</p>
-            <p className="text-xs font-bold font-[Orbitron] tracking-widest text-white uppercase">History</p>
-          </Link>
-          <Link to="/leaderboard" className="bg-[#181827] border border-[#302E46] rounded-xl p-5 text-center hover:border-[#B7FF2A] transition-all group">
-            <p className="text-2xl mb-2 group-hover:scale-110 transition-transform">🏆</p>
-            <p className="text-xs font-bold font-[Orbitron] tracking-widest text-white uppercase">Rankings</p>
-          </Link>
-          <Link to="/guild" className="bg-[#181827] border border-[#302E46] rounded-xl p-5 text-center hover:border-[#B7FF2A] transition-all group">
-            <p className="text-2xl mb-2 group-hover:scale-110 transition-transform">⚔️</p>
-            <p className="text-xs font-bold font-[Orbitron] tracking-widest text-white uppercase">Guild</p>
-          </Link>
-        </div>
-
-        {/* Recent matches */}
         {stats?.recentMatches?.length > 0 && (
-          <div className="dash-anim">
-            <p className="text-xs font-bold font-[Orbitron] text-[#A9A8B8] uppercase tracking-widest mb-4">Recent Battles</p>
-            <div className="space-y-3">
-              {stats.recentMatches.map((m) => (
-                <div key={m.matchId} className="flex items-center justify-between px-5 py-4 bg-[#181827] border border-[#302E46] hover:bg-[#1C1A2A] transition-colors rounded-xl">
-                  <div>
-                    <p className="text-sm font-bold text-white uppercase tracking-wide">{m.gameMode?.replace(/_/g, " ")}</p>
-                    <p className="text-[10px] text-[#A9A8B8] mt-1 font-semibold uppercase">{new Date(m.date).toLocaleDateString()}</p>
-                  </div>
-                  <span className={`text-[10px] font-black px-3 py-1 rounded border tracking-widest uppercase ${
-                    m.isWinner ? "bg-[rgba(183,255,42,0.1)] text-[#B7FF2A] border-[rgba(183,255,42,0.2)]" : "bg-red-500/10 text-red-500 border-red-500/20"
-                  }`}>
-                    {m.isWinner ? "VICTORY" : "DEFEAT"}
-                  </span>
-                </div>
-              ))}
+          <section className="dash-anim">
+            <div className="flex items-end justify-between mb-4">
+              <p className="text-[10px] font-semibold text-[#8f8ca3] uppercase tracking-[0.24em]">recent battles</p>
+              <Link to="/match-history" className="text-xs uppercase tracking-[0.16em] text-[#b7ff2a] font-semibold">view all</Link>
             </div>
-          </div>
+            <div className="rounded-3xl p-[1px] bg-gradient-to-br from-[#3f3a56] to-[#262337]">
+              <div className="rounded-[calc(1.5rem-1px)] bg-[#171624]/95 divide-y divide-[#2f2b45]">
+                {stats.recentMatches.map((m) => (
+                  <div key={m.matchId} className="flex items-center justify-between gap-4 px-5 py-4">
+                    <div>
+                      <p className="text-sm font-bold text-white uppercase tracking-[0.08em]">{m.gameMode?.replace(/_/g, " ")}</p>
+                      <p className="text-[10px] text-[#9f9ab4] mt-1 font-semibold uppercase tracking-[0.18em]">{new Date(m.date).toLocaleDateString()}</p>
+                    </div>
+                    <span className={`text-[10px] font-black px-3 py-1 rounded-full tracking-[0.18em] uppercase ${
+                      m.isWinner ? "bg-[rgba(183,255,42,0.12)] text-[#B7FF2A]" : "bg-red-500/12 text-red-400"
+                    }`}>
+                      {m.isWinner ? "VICTORY" : "DEFEAT"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
         )}
 
-        {/* Security */}
-        <div className="bg-[#181827] border border-[#302E46] rounded-xl p-6 flex flex-col sm:flex-row items-center justify-between dash-anim gap-4">
-          <div className="text-center sm:text-left">
-            <p className="text-sm font-bold font-[Orbitron] tracking-widest text-white uppercase">Two-Factor Auth</p>
-            <p className="text-xs text-[#A9A8B8] mt-1 font-semibold">
-              {user?.isTwoFactorEnabled ? "SYSTEM SECURED WITH 2FA" : "ACCOUNT AT RISK - ENABLE 2FA"}
+        <section className="dash-anim border-t border-[#2f2b45] pt-7 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-semibold text-[#8f8ca3] uppercase tracking-[0.24em]">security status</p>
+            <p className="text-sm text-[#d7d4e5] mt-2 uppercase tracking-[0.08em] font-semibold">
+              {user?.isTwoFactorEnabled ? "2FA enabled for this account" : "2FA is disabled"}
             </p>
           </div>
           {user?.isTwoFactorEnabled ? (
-            <span className="text-[10px] font-black text-[#13121B] bg-[#B7FF2A] px-4 py-1.5 rounded uppercase tracking-widest outline outline-[1px] outline-offset-2 outline-[#B7FF2A]">ACTIVE</span>
+            <span className="text-[10px] font-black text-[#13121B] bg-[#B7FF2A] px-4 py-1.5 rounded-full uppercase tracking-[0.18em]">ACTIVE</span>
           ) : (
-            <Link to="/setup-2fa" className="text-xs font-bold text-[#00FFFF] hover:text-white transition-colors border-b border-[#00FFFF] hover:border-white pb-1 tracking-widest uppercase">
-              ENABLE NOW →
+            <Link to="/setup-2fa" className="text-xs font-bold text-[#b7ff2a] hover:text-white transition-colors uppercase tracking-[0.2em]">
+              Enable now
             </Link>
           )}
-        </div>
+        </section>
       </div>
     </div>
   );

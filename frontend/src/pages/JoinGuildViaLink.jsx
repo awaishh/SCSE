@@ -44,7 +44,7 @@ const JoinGuildViaLink = () => {
   }, [authLoading, user]);
 
   return (
-    <div className="min-h-screen bg-[#13121B] font-['Satoshi'] flex items-center justify-center">
+    <div className="min-h-screen bg-[#13121B] font-['Rajdhani'] flex items-center justify-center">
       <div className="text-center">
         <span className="w-8 h-8 border-2 border-violet-600 border-t-transparent rounded-full animate-spin inline-block" />
         <p className="text-sm text-[#A9A8B8] mt-4">{status}</p>

@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import QRCode from "qrcode";
 import { useGuild } from "../context/GuildContext";
 import { useAuth } from "../context/AuthContext";
@@ -29,22 +28,24 @@ const InviteCard = ({ guildId }) => {
   };
 
   return (
-    <div className="border-2 border-violet-100 rounded-xl p-5 flex flex-col items-center gap-3 bg-violet-50/30">
-      <p className="text-xs font-bold uppercase tracking-widest text-[#B7FF2A]">Invite Link</p>
-      <p className="text-xs text-[#A9A8B8] text-center">Share this QR or link — anyone who scans/clicks joins your guild</p>
+    <div className="rounded-3xl p-[1px] bg-gradient-to-br from-[#3f3a56] to-[#262337]">
+      <div className="rounded-[calc(1.5rem-1px)] bg-[#171624]/95 p-5 flex flex-col items-center gap-3">
+      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#B7FF2A]">Invite Link</p>
+      <p className="text-xs text-[#A9A8B8] text-center">Share this QR or link. Anyone who scans can join your guild instantly.</p>
       {qr ? (
         <img src={qr} alt="Guild invite QR" className="rounded-lg border border-[#302E46]" style={{ width: 140, height: 140 }} />
       ) : (
         <div className="w-36 h-36 bg-[#1C1A2A] rounded-lg animate-pulse" />
       )}
-      <div className="w-full bg-[#181827] border border-[#302E46] rounded-lg px-3 py-2 flex items-center gap-2">
+      <div className="w-full bg-[#181827] border border-[#302E46] rounded-xl px-3 py-2 flex items-center gap-2">
         <p className="text-xs text-[#A9A8B8] truncate flex-1 font-mono">{inviteUrl}</p>
         <button
           onClick={copy}
-          className="text-xs font-bold text-[#B7FF2A] hover:text-violet-700 shrink-0"
+          className="text-xs font-bold text-[#B7FF2A] hover:text-white shrink-0"
         >
           {copied ? "Copied!" : "Copy"}
         </button>
+      </div>
       </div>
     </div>
   );
@@ -53,7 +54,6 @@ const InviteCard = ({ guildId }) => {
 const Guild = () => {
   const { user } = useAuth();
   const { guild, leaderboard, loading, createGuild, joinGuild, leaveGuild, fetchGuild, fetchLeaderboard, setGuild } = useGuild();
-  const navigate = useNavigate();
 
   const [tab, setTab] = useState("my");
   const [createName, setCreateName] = useState("");
@@ -87,28 +87,17 @@ const Guild = () => {
   const guildId = guild?._id;
 
   return (
-    <div className="min-h-screen bg-[#13121B] text-white font-['Satoshi']">
-      {/* Nav */}
-      <nav className="border-b border-[#302E46] px-8 py-4 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <span className="font-bold">Battle</span>
-          <span className="font-bold text-[#B7FF2A]">Arena</span>
-          <span className="mx-2 text-gray-200">|</span>
-          <span className="text-sm text-[#A9A8B8]">Guilds</span>
-        </div>
-        <button onClick={() => navigate("/dashboard")} className="text-xs text-[#A9A8B8] hover:text-white transition-colors">
-          ← Dashboard
-        </button>
-      </nav>
-
-      <div className="max-w-3xl mx-auto px-6 py-10">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">Guilds</h1>
-          <p className="text-[#A9A8B8] text-sm mt-1">Compete together, rise together</p>
+    <div className="min-h-[100dvh] bg-[#13121B] text-white font-['Rajdhani'] relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_18%_20%,rgba(183,255,42,0.1),transparent_34%),radial-gradient(circle_at_85%_72%,rgba(0,225,255,0.08),transparent_30%)]" />
+      <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+        <div className="mb-8 border-b border-[#2f2b45] pb-6">
+          <p className="text-[10px] font-semibold text-[#8f8ca3] uppercase tracking-[0.24em] mb-3">team operations</p>
+          <h1 className="text-3xl sm:text-4xl font-[Oxanium] font-black tracking-tight uppercase">Guild HQ</h1>
+          <p className="text-[#A9A8B8] text-sm mt-3">Compete together, rise together</p>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-[#1C1A2A] p-1 rounded-lg mb-8 w-fit">
+        <div className="flex gap-2 mb-8 w-fit flex-wrap">
           {[
             { id: "my", label: "My Guild" },
             { id: "create", label: "Create" },
@@ -117,8 +106,8 @@ const Guild = () => {
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`px-5 py-2 rounded-md text-sm font-semibold transition-all ${
-                tab === t.id ? "bg-[#181827] text-white shadow-sm" : "text-[#A9A8B8] hover:text-white"
+              className={`px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-[0.16em] transition-all ${
+                tab === t.id ? "bg-[#B7FF2A] text-[#13121B]" : "bg-[#1b1a29] text-[#A9A8B8] hover:text-white"
               }`}
             >
               {t.label}
@@ -132,20 +121,22 @@ const Guild = () => {
             {guild ? (
               <div className="space-y-6">
                 {/* Guild header */}
-                <div className="border border-[#302E46] rounded-xl p-6">
+                <div className="rounded-3xl p-[1px] bg-gradient-to-br from-[#3f3a56] to-[#262337]">
+                  <div className="rounded-[calc(1.5rem-1px)] bg-[#171624]/95 p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div>
-                      <h2 className="text-xl font-bold">{guild.name}</h2>
+                      <h2 className="text-2xl font-[Oxanium] font-black tracking-tight">{guild.name}</h2>
                       {guild.description && <p className="text-[#A9A8B8] text-sm mt-1">{guild.description}</p>}
                     </div>
                     <div className="text-right">
-                      <p className="text-2xl font-black text-[#B7FF2A]">{guild.guildRating?.toFixed(0)}</p>
-                      <p className="text-xs text-[#A9A8B8] uppercase tracking-wide">Rating</p>
+                      <p className="text-3xl font-black text-[#B7FF2A] leading-none">{guild.guildRating?.toFixed(0)}</p>
+                      <p className="text-[10px] text-[#A9A8B8] uppercase tracking-[0.2em] mt-1">Rating</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4 text-xs text-[#A9A8B8]">
                     <span>{guild.members?.length} / {guild.maxMembers} members</span>
-                    {isOwner && <span className="bg-amber-50 text-amber-600 font-bold px-2 py-0.5 rounded-full">Owner</span>}
+                    {isOwner && <span className="bg-amber-500/15 text-amber-300 font-bold px-2 py-0.5 rounded-full uppercase tracking-[0.12em]">Owner</span>}
+                  </div>
                   </div>
                 </div>
 
@@ -155,7 +146,7 @@ const Guild = () => {
                     <p className="text-xs font-semibold text-[#A9A8B8] uppercase tracking-wide">Invite Members</p>
                     <button
                       onClick={() => setShowInvite(!showInvite)}
-                      className="text-xs font-semibold text-[#B7FF2A] hover:text-violet-700"
+                      className="text-xs font-semibold text-[#B7FF2A] hover:text-white uppercase tracking-[0.16em]"
                     >
                       {showInvite ? "Hide" : "Show QR & Link"}
                     </button>
@@ -164,9 +155,9 @@ const Guild = () => {
                   {!showInvite && (
                     <div
                       onClick={() => setShowInvite(true)}
-                      className="border-2 border-dashed border-violet-200 rounded-xl p-5 flex items-center gap-4 cursor-pointer hover:border-violet-400 transition-colors"
+                      className="rounded-2xl p-5 flex items-center gap-4 cursor-pointer bg-[#171624]/95 hover:bg-[#1f1d2d] transition-colors"
                     >
-                      <div className="w-10 h-10 bg-violet-50 rounded-lg flex items-center justify-center text-[#B7FF2A] text-lg font-bold">+</div>
+                      <div className="w-10 h-10 bg-[#242235] rounded-lg flex items-center justify-center text-[#B7FF2A] text-lg font-bold">+</div>
                       <div>
                         <p className="text-sm font-semibold text-white">Invite people to your guild</p>
                         <p className="text-xs text-[#A9A8B8] mt-0.5">Share a QR code or invite link — they join instantly</p>
@@ -180,7 +171,7 @@ const Guild = () => {
                   <p className="text-xs font-semibold text-[#A9A8B8] uppercase tracking-wide mb-3">
                     Members ({guild.members?.length})
                   </p>
-                  <div className="space-y-2">
+                  <div className="rounded-3xl overflow-hidden bg-[#171624]/95 divide-y divide-[#2f2b45]">
                     {guild.members?.map((m) => {
                       const mid = m.userId?._id || m.userId;
                       const mname = m.userId?.name || "Member";
@@ -188,18 +179,18 @@ const Guild = () => {
                       const isMe = mid === user?._id;
                       const isGuildOwner = guild.ownerId?._id === mid || guild.ownerId === mid;
                       return (
-                        <div key={mid} className={`flex items-center gap-3 px-4 py-3 rounded-lg ${isMe ? "bg-violet-50 border border-violet-100" : "bg-[#1C1A2A]"}`}>
-                          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold">
+                        <div key={mid} className={`flex items-center gap-3 px-4 py-3 ${isMe ? "bg-[rgba(183,255,42,0.08)]" : "bg-transparent"}`}>
+                          <div className="w-8 h-8 rounded-full bg-[#2a273d] flex items-center justify-center text-xs font-bold text-[#d0cee0]">
                             {mname[0]?.toUpperCase()}
                           </div>
                           <div className="flex-1">
                             <p className="text-sm font-semibold">
-                              {mname} {isMe && <span className="text-violet-500 text-xs">(you)</span>}
+                              {mname} {isMe && <span className="text-[#B7FF2A] text-xs uppercase tracking-[0.12em]">(you)</span>}
                             </p>
                             <p className="text-xs text-[#A9A8B8]">Rating: {mrating}</p>
                           </div>
                           {isGuildOwner && (
-                            <span className="text-[10px] bg-amber-100 text-amber-600 font-bold px-1.5 py-0.5 rounded">OWNER</span>
+                            <span className="text-[10px] bg-amber-500/15 text-amber-300 font-bold px-1.5 py-0.5 rounded uppercase tracking-[0.12em]">OWNER</span>
                           )}
                         </div>
                       );
@@ -211,19 +202,19 @@ const Guild = () => {
                 <button
                   onClick={handleLeave}
                   disabled={loading}
-                  className="w-full border-2 border-red-200 text-red-500 hover:bg-red-50 py-3 rounded-lg text-sm font-semibold transition-all"
+                  className="w-full bg-red-500/10 text-red-300 hover:bg-red-500/20 py-3 rounded-full text-sm font-semibold uppercase tracking-[0.12em] transition-all"
                 >
                   Leave Guild
                 </button>
               </div>
             ) : (
-              <div className="text-center py-16 border-2 border-dashed border-[#302E46] rounded-xl">
+              <div className="text-center py-16 rounded-3xl bg-[#171624]/95">
                 <p className="text-[#A9A8B8] text-sm">You're not in a guild yet</p>
                 <div className="flex gap-3 justify-center mt-4">
-                  <button onClick={() => setTab("create")} className="px-4 py-2 bg-[#B7FF2A] text-[#13121B] text-sm font-semibold rounded-lg">
+                  <button onClick={() => setTab("create")} className="px-4 py-2 bg-[#B7FF2A] text-[#13121B] text-xs font-semibold uppercase tracking-[0.14em] rounded-full">
                     Create Guild
                   </button>
-                  <button onClick={() => setTab("browse")} className="px-4 py-2 border border-[#302E46] text-sm font-semibold rounded-lg hover:border-gray-300">
+                  <button onClick={() => setTab("browse")} className="px-4 py-2 bg-[#232137] text-xs font-semibold uppercase tracking-[0.14em] rounded-full hover:bg-[#2b2841]">
                     Browse Guilds
                   </button>
                 </div>
@@ -236,11 +227,11 @@ const Guild = () => {
         {tab === "create" && (
           <div className="max-w-md">
             {user?.guildId ? (
-              <div className="text-center py-12 border-2 border-dashed border-[#302E46] rounded-xl">
+              <div className="text-center py-12 rounded-3xl bg-[#171624]/95">
                 <p className="text-[#A9A8B8] text-sm">Leave your current guild before creating a new one</p>
               </div>
             ) : (
-              <form onSubmit={handleCreate} className="space-y-5">
+              <form onSubmit={handleCreate} className="space-y-5 rounded-3xl bg-[#171624]/95 p-6">
                 <div>
                   <label className="block text-xs font-semibold text-[#A9A8B8] uppercase tracking-wide mb-1.5">
                     Guild Name *
@@ -251,7 +242,7 @@ const Guild = () => {
                     value={createName}
                     onChange={(e) => setCreateName(e.target.value)}
                     maxLength={30}
-                    className="w-full px-4 py-3 rounded-lg border-2 border-[#302E46] focus:border-violet-600 text-sm outline-none transition-all"
+                    className="w-full px-4 py-3 rounded-xl border border-[#302E46] focus:border-[#B7FF2A] bg-[#11101a] text-sm outline-none transition-all"
                     required
                   />
                 </div>
@@ -265,13 +256,13 @@ const Guild = () => {
                     onChange={(e) => setCreateDesc(e.target.value)}
                     maxLength={200}
                     rows={3}
-                    className="w-full px-4 py-3 rounded-lg border-2 border-[#302E46] focus:border-violet-600 text-sm outline-none transition-all resize-none"
+                    className="w-full px-4 py-3 rounded-xl border border-[#302E46] focus:border-[#B7FF2A] bg-[#11101a] text-sm outline-none transition-all resize-none"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-[#111827] hover:bg-[#1C1A2A] disabled:opacity-60 text-white py-3.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2"
+                  className="w-full bg-[#B7FF2A] hover:bg-[#a1e520] disabled:opacity-60 text-[#13121B] py-3.5 rounded-full text-xs font-semibold uppercase tracking-[0.14em] transition-all flex items-center justify-center gap-2"
                 >
                   {loading ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Create Guild"}
                 </button>
@@ -287,7 +278,7 @@ const Guild = () => {
               <p className="text-[#A9A8B8] text-sm text-center py-12">No guilds yet</p>
             ) : (
               leaderboard.map((g, i) => (
-                <div key={g._id} className="flex items-center gap-4 px-5 py-4 border border-[#302E46] rounded-xl hover:border-[#302E46] transition-all">
+                <div key={g._id} className="flex items-center gap-4 px-5 py-4 rounded-2xl bg-[#171624]/95 hover:bg-[#1f1d2d] transition-all">
                   <span className={`text-sm font-black w-6 text-center ${i === 0 ? "text-amber-500" : i === 1 ? "text-[#A9A8B8]" : i === 2 ? "text-amber-700" : "text-gray-300"}`}>
                     {i + 1}
                   </span>
@@ -303,7 +294,7 @@ const Guild = () => {
                     <button
                       onClick={() => handleJoin(g._id)}
                       disabled={loading}
-                      className="px-3 py-1.5 bg-[#B7FF2A] hover:bg-[#A6F11F] text-[#13121B] text-xs font-semibold rounded-lg transition-all"
+                      className="px-3 py-1.5 bg-[#B7FF2A] hover:bg-[#A6F11F] text-[#13121B] text-[10px] font-semibold uppercase tracking-[0.14em] rounded-full transition-all"
                     >
                       Join
                     </button>

@@ -43,10 +43,10 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#13121B] px-4 py-12 font-['Satoshi']">
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#13121B] px-4 py-12 font-['Rajdhani']">
       <div className="w-full max-w-md bg-[#181827] rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.5)] p-8 border border-[#302E46]">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-[Orbitron] font-black uppercase text-white tracking-wide">Create Account</h1>
+          <h1 className="text-3xl font-[Oxanium] font-black uppercase text-white tracking-wide">Create Account</h1>
           <p className="text-[#A9A8B8] mt-2 text-sm font-medium">JOIN THE BATTLE ARENA</p>
         </div>
 

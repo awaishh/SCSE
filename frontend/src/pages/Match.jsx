@@ -259,7 +259,7 @@ const Match = () => {
     const teamBScore = teamB.reduce((s, p) => s + (p.score || 0), 0);
 
     return (
-      <div className="min-h-screen bg-[#13121B] font-['Satoshi'] flex items-center justify-center px-4" style={{ fontFamily: "'Satoshi', 'Inter', sans-serif" }}>
+      <div className="min-h-screen bg-[#13121B] font-['Rajdhani'] flex items-center justify-center px-4" style={{ fontFamily: "'Rajdhani', 'Segoe UI', sans-serif" }}>
         <div className="w-full max-w-lg text-center">
           <div className="text-6xl mb-4">{iWon ? "🏆" : "💀"}</div>
           <h1 className="text-3xl font-bold text-white tracking-tight mb-2">
@@ -363,13 +363,13 @@ const Match = () => {
   }
 
   return (
-    <div className="h-screen bg-[#13121B] font-['Satoshi'] flex flex-col overflow-hidden text-white" style={{ fontFamily: "'Satoshi', 'Inter', sans-serif" }}>
+    <div className="h-screen bg-[#13121B] font-['Rajdhani'] flex flex-col overflow-hidden text-white" style={{ fontFamily: "'Rajdhani', 'Segoe UI', sans-serif" }}>
 
       {/* ── Top bar ── */}
       <div className="h-14 border-b border-[#302E46] flex items-center justify-between px-6 shrink-0">
         <div className="flex items-center gap-3">
-          <span className="font-['Orbitron'] font-bold text-white">KRYPTCODE</span>
-          <span className="font-['Orbitron'] font-bold text-[#B7FF2A]">ARENA</span>
+          <span className="font-[Oxanium] font-bold text-white">KRYPTCODE</span>
+          <span className="font-[Oxanium] font-bold text-[#B7FF2A]">ARENA</span>
           <span className="text-gray-200 mx-1">|</span>
           <span className="text-xs font-semibold text-[#A9A8B8]">{MODE_LABELS[matchData?.gameMode] || "Match"}</span>
           {/* Question progress */}

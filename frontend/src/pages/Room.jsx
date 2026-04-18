@@ -102,7 +102,7 @@ const Room = () => {
 
   if (loading && !room) {
     return (
-      <div className="min-h-screen bg-[#13121B] font-['Satoshi'] flex items-center justify-center">
+      <div className="min-h-screen bg-[#13121B] font-['Rajdhani'] flex items-center justify-center">
         <span className="w-6 h-6 border-2 border-[#B7FF2A] border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -110,7 +110,7 @@ const Room = () => {
 
   if (!room) {
     return (
-      <div className="min-h-screen bg-[#13121B] font-['Satoshi'] flex items-center justify-center">
+      <div className="min-h-screen bg-[#13121B] font-['Rajdhani'] flex items-center justify-center">
         <div className="text-center">
           <p className="text-[#A9A8B8] text-sm">Room not found</p>
           <button onClick={() => navigate("/lobby")} className="mt-4 text-[#B7FF2A] text-sm font-semibold">
@@ -137,24 +137,7 @@ const Room = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#13121B] text-white font-['Satoshi']">
-      {/* Nav */}
-      <nav className="border-b border-[#302E46] px-8 py-4 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <span className="font-['Orbitron'] font-bold">KRYPTCODE</span>
-          <span className="font-['Orbitron'] font-bold text-[#B7FF2A]">ARENA</span>
-          <span className="mx-2 text-gray-200">|</span>
-          <span className="text-sm text-[#A9A8B8]">Room</span>
-          <span className="ml-2 font-mono font-bold text-sm bg-[#1C1A2A] px-2 py-0.5 rounded">{room.roomCode}</span>
-        </div>
-        <button
-          onClick={() => { leaveRoom(); navigate("/lobby"); }}
-          className="text-xs text-[#A9A8B8] hover:text-red-500 transition-colors font-semibold"
-        >
-          Leave Room
-        </button>
-      </nav>
-
+    <div className="min-h-screen bg-[#13121B] text-white font-['Rajdhani']">
       <div className="max-w-3xl mx-auto px-6 py-10 space-y-8">
 
         {/* Room info */}
@@ -165,11 +148,19 @@ const Room = () => {
               {room.players?.length} / {room.maxPlayers} players · {room.isPrivate ? "Private" : "Public"}
             </p>
           </div>
-          <span className={`text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full ${
-            room.status === "WAITING" ? "bg-[rgba(245,158,11,0.1)] text-amber-400" : "bg-[rgba(183,255,42,0.1)] text-[#B7FF2A]"
-          }`}>
-            {room.status}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className={`text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full ${
+              room.status === "WAITING" ? "bg-[rgba(245,158,11,0.1)] text-amber-400" : "bg-[rgba(183,255,42,0.1)] text-[#B7FF2A]"
+            }`}>
+              {room.status}
+            </span>
+            <button
+              onClick={() => { leaveRoom(); navigate("/lobby"); }}
+              className="text-xs text-[#A9A8B8] hover:text-red-500 transition-colors font-semibold"
+            >
+              Leave Room
+            </button>
+          </div>
         </div>
 
         {/* Players list */}

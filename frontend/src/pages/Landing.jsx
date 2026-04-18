@@ -1,9 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Lenis from 'lenis';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { Code2 } from 'lucide-react';
 import styles from './Landing.module.css';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -17,24 +15,6 @@ export default function Landing() {
   const featureRef = useRef(null);
 
   useEffect(() => {
-    // Initialize Lenis
-    const lenis = new Lenis({
-      smoothTouch: true,
-      duration: 1.2
-    });
-
-    function raf(time) {
-      lenis.raf(time);
-      requestAnimationFrame(raf);
-    }
-    requestAnimationFrame(raf);
-
-    // Sync GSAP with Lenis
-    gsap.ticker.add((time) => {
-      lenis.raf(time * 1000);
-    });
-    gsap.ticker.lagSmoothing(0);
-
     const ctx = gsap.context(() => {
       // Background Text Parallax
       gsap.to(bgTextRef.current, {
@@ -50,8 +30,7 @@ export default function Landing() {
 
       // Hero Intro Animation
       const tl = gsap.timeline();
-      tl.from(".nav-anim", { y: -20, opacity: 0, duration: 0.8, stagger: 0.1, ease: "power3.out" })
-        .from(".hero-title-line", { y: 40, opacity: 0, duration: 1, stagger: 0.2, ease: "expo.out" }, "-=0.4")
+      tl.from(".hero-title-line", { y: 40, opacity: 0, duration: 1, stagger: 0.2, ease: "expo.out" })
         .from(".hero-cards", { x: 100, opacity: 0, rotationY: 45, duration: 1.2, ease: "power3.out" }, "-=0.8");
 
       // Feature Section Scroll
@@ -83,8 +62,6 @@ export default function Landing() {
     }, containerRef);
     return () => {
       ctx.revert();
-      gsap.ticker.remove(lenis.raf);
-      lenis.destroy();
     };
   }, []);
 
@@ -115,25 +92,6 @@ export default function Landing() {
         {/* Hero Section */}
         <section className={styles.heroSection} ref={heroRef}>
           <div className={styles.framedPanel}>
-            
-            {/* Nav */}
-            <nav className={styles.topNav}>
-              <div className={`${styles.logo} nav-anim`}>
-                <Code2 className={styles.logoIcon} />
-                <span>KRYPTCODE</span>
-              </div>
-              <div className={`${styles.navLinks} nav-anim`}>
-                <span className={styles.navLink}>TOURNAMENTS</span>
-                <span className={styles.navLink}>LEADERBOARD</span>
-                <span className={styles.navLink}>ARENA</span>
-              </div>
-              <button 
-                className={`${styles.registerBtn} nav-anim`}
-                onClick={() => navigate('/register')}
-              >
-                REGISTER
-              </button>
-            </nav>
 
             {/* Content */}
             <div className={styles.heroContent}>

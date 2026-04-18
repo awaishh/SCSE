@@ -4,7 +4,7 @@ const Input = React.forwardRef(({ label, error, type = "text", ...props }, ref) 
   return (
     <div className="w-full mb-4">
       {label && (
-        <label className="block text-xs font-[Orbitron] uppercase tracking-widest text-[#A9A8B8] mb-1.5 ml-1">
+        <label className="block text-xs font-[Oxanium] uppercase tracking-widest text-[#A9A8B8] mb-1.5 ml-1">
           {label}
         </label>
       )}

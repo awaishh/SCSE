@@ -6,6 +6,7 @@ import { GuildProvider } from "./context/GuildContext";
 import { Toaster } from "react-hot-toast";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import GuestRoute from "./routes/GuestRoute";
+import AppShell from "./components/layout/AppShell";
 
 // Auth pages
 import Login from "./pages/Login";
@@ -38,35 +39,36 @@ function App() {
             <GuildProvider>
               <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
               <Routes>
+                <Route element={<AppShell />}>
+                  {/* ── Guest only ── */}
+                  <Route element={<GuestRoute />}>
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/register" element={<Register />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/verify-reset" element={<VerifyReset />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
+                  </Route>
 
-                {/* ── Guest only ── */}
-                <Route element={<GuestRoute />}>
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/register" element={<Register />} />
-                  <Route path="/forgot-password" element={<ForgotPassword />} />
-                  <Route path="/verify-reset" element={<VerifyReset />} />
-                  <Route path="/reset-password" element={<ResetPassword />} />
+                  {/* ── Public Landing ── */}
+                  <Route path="/" element={<Landing />} />
+
+                  {/* ── Protected ── */}
+                  <Route element={<ProtectedRoute />}>
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/setup-2fa" element={<Setup2FA />} />
+                    <Route path="/lobby" element={<Lobby />} />
+                    <Route path="/room/:roomCode" element={<Room />} />
+                    <Route path="/match/:matchId" element={<Match />} />
+                    <Route path="/replay/:matchId" element={<Replay />} />
+                    <Route path="/match-history" element={<MatchHistory />} />
+                    <Route path="/join/:roomCode" element={<JoinViaQR />} />
+                    <Route path="/guild" element={<Guild />} />
+                    <Route path="/guild/join/:guildId" element={<JoinGuildViaLink />} />
+                    <Route path="/leaderboard" element={<Leaderboard />} />
+                  </Route>
+
+                  <Route path="*" element={<NotFound />} />
                 </Route>
-
-                {/* ── Public Landing ── */}
-                <Route path="/" element={<Landing />} />
-
-                {/* ── Protected ── */}
-                <Route element={<ProtectedRoute />}>
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/setup-2fa" element={<Setup2FA />} />
-                  <Route path="/lobby" element={<Lobby />} />
-                  <Route path="/room/:roomCode" element={<Room />} />
-                  <Route path="/match/:matchId" element={<Match />} />
-                  <Route path="/replay/:matchId" element={<Replay />} />
-                  <Route path="/match-history" element={<MatchHistory />} />
-                  <Route path="/join/:roomCode" element={<JoinViaQR />} />
-                  <Route path="/guild" element={<Guild />} />
-                  <Route path="/guild/join/:guildId" element={<JoinGuildViaLink />} />
-                  <Route path="/leaderboard" element={<Leaderboard />} />
-                </Route>
-
-                <Route path="*" element={<NotFound />} />
               </Routes>
             </GuildProvider>
           </RoomProvider>

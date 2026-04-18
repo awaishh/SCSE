@@ -65,7 +65,7 @@ const Replay = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#13121B] font-['Satoshi'] flex items-center justify-center">
+      <div className="min-h-screen bg-[#13121B] font-['Rajdhani'] flex items-center justify-center">
         <span className="w-6 h-6 border-2 border-violet-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -73,7 +73,7 @@ const Replay = () => {
 
   if (error || !replay) {
     return (
-      <div className="min-h-screen bg-[#13121B] font-['Satoshi'] flex items-center justify-center px-4">
+      <div className="min-h-screen bg-[#13121B] font-['Rajdhani'] flex items-center justify-center px-4">
         <div className="text-center">
           <p className="text-2xl mb-3">🎬</p>
           <h2 className="text-xl font-bold text-white mb-2">Replay Not Available</h2>
@@ -139,20 +139,7 @@ const Replay = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#13121B] text-white font-['Satoshi']">
-      {/* Nav */}
-      <nav className="border-b border-[#302E46] px-8 py-4 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <span className="font-['Orbitron'] font-bold text-white">KRYPTCODE</span>
-          <span className="font-['Orbitron'] font-bold text-[#B7FF2A]">ARENA</span>
-          <span className="mx-2 text-gray-200">|</span>
-          <span className="text-sm text-[#A9A8B8]">Match Replay</span>
-        </div>
-        <button onClick={() => navigate("/dashboard")} className="text-xs text-[#A9A8B8] hover:text-white transition-colors">
-          ← Dashboard
-        </button>
-      </nav>
-
+    <div className="min-h-screen bg-[#13121B] text-white font-['Rajdhani']">
       <div className="max-w-5xl mx-auto px-6 py-10">
         <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight">Match Replay</h1>

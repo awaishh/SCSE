@@ -60,13 +60,13 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#13121B] px-4 font-['Satoshi']">
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#13121B] px-4 font-['Rajdhani']">
       <div className="w-full max-w-md bg-[#181827] rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.5)] p-8 border border-[#302E46]">
 
         {!requires2FA ? (
           <>
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-[Orbitron] font-black uppercase text-white tracking-wide">Welcome Back</h1>
+              <h1 className="text-3xl font-[Oxanium] font-black uppercase text-white tracking-wide">Welcome Back</h1>
               <p className="text-[#A9A8B8] mt-2 text-sm font-medium">ENTER THE ARENA</p>
             </div>
 
@@ -112,7 +112,7 @@ const Login = () => {
               <div className="w-14 h-14 bg-[#B7FF2A]/10 border border-[#B7FF2A]/30 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-2xl">🔐</span>
               </div>
-              <h1 className="text-2xl font-[Orbitron] font-black uppercase text-white tracking-wide">Two-Factor Auth</h1>
+              <h1 className="text-2xl font-[Oxanium] font-black uppercase text-white tracking-wide">Two-Factor Auth</h1>
               <p className="text-[#A9A8B8] mt-2 text-sm font-medium">SYNC AUTHENTICATOR APP</p>
             </div>
 
