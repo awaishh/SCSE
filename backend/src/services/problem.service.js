@@ -3,35 +3,25 @@ import { Match } from "../models/match.model.js";
 import { ApiError } from "../utils/api-error.js";
 
 /**
- * Get all problems (paginated, for admin or browsing).
+ * Get all problems (paginated).
  */
 export const getAllProblems = async (page = 1, limit = 20) => {
   const skip = (page - 1) * limit;
   const [data, total] = await Promise.all([
-    Problem.find()
-      .select("-testCases")
-      .sort({ difficultyRating: 1 })
-      .skip(skip)
-      .limit(limit),
+    Problem.find().select("-testCases").sort({ difficultyRating: 1 }).skip(skip).limit(limit),
     Problem.countDocuments(),
   ]);
   return { data, page, limit, total };
 };
 
 /**
- * Get a single problem by slug (with visible test cases only for players).
+ * Get a single problem by slug (visible test cases only).
  */
 export const getProblemBySlug = async (slug) => {
   const problem = await Problem.findOne({ slug });
   if (!problem) throw new ApiError(404, "Problem not found");
-
-  // Filter to only visible test cases
   const visibleTestCases = problem.testCases.filter((tc) => !tc.isHidden);
-
-  return {
-    ...problem.toObject(),
-    testCases: visibleTestCases,
-  };
+  return { ...problem.toObject(), testCases: visibleTestCases };
 };
 
 /**
@@ -44,78 +34,55 @@ export const getProblemWithAllTestCases = async (problemId) => {
 };
 
 /**
- * Stage → difficultyRating ranges (matches STAGES in match.service.js).
+ * Assign 3 random problems for a 1v1 match (one per question slot).
+ * Picks randomly from all available problems — no stage range filtering.
+ * Persists the assignment so both players always see the same questions.
  */
-const STAGE_RANGES = [
-  { min: 800, max: 1099 },   // Stage 0
-  { min: 1100, max: 1399 },  // Stage 1
-  { min: 1400, max: 1699 },  // Stage 2
-  { min: 1700, max: 1999 },  // Stage 3
-  { min: 2000, max: 2400 },  // Stage 4
-];
+export const assignMatchProblems = async (matchId) => {
+  const match = await Match.findById(matchId);
+  if (!match) throw new ApiError(404, "Match not found");
 
-/**
- * Get a random problem from the local Problem Bank for a given stage.
- * Returns the problem WITHOUT hidden test cases (for display to player).
- */
-export const getRandomProblemForStage = async (stage = 0) => {
-  const range = STAGE_RANGES[stage] || STAGE_RANGES[0];
-  const problems = await Problem.find({
-    difficultyRating: { $gte: range.min, $lte: range.max },
-  }).select("-testCases");
-
-  if (!problems || problems.length === 0) {
-    throw new ApiError(404, `No problems found for stage ${stage}`);
+  // Already assigned
+  if (match.stageProblemMap && match.stageProblemMap.size >= 3) {
+    return match;
   }
 
-  // Pick a random one
-  const picked = problems[Math.floor(Math.random() * problems.length)];
+  const allProblems = await Problem.find().select("_id").lean();
+  if (allProblems.length < 3) {
+    throw new ApiError(500, "Not enough problems in the database (need at least 3)");
+  }
 
-  // Fetch full doc with visible test cases only
-  const full = await Problem.findById(picked._id);
-  const visible = full.testCases.filter((tc) => !tc.isHidden);
-  return { ...full.toObject(), testCases: visible };
+  // Shuffle and pick 3
+  const shuffled = allProblems.sort(() => Math.random() - 0.5);
+  const picked = shuffled.slice(0, 3);
+
+  picked.forEach((p, i) => {
+    match.stageProblemMap.set(String(i), p._id);
+  });
+
+  await match.save();
+  return match;
 };
 
 /**
- * Get a deterministic stage problem for a match.
- * First request for (match, stage) assigns a random problem and persists it.
- * Subsequent requests always return the same problem for all players.
+ * Get the assigned problem for a specific question index (0, 1, 2).
+ * Returns visible test cases only.
  */
-export const getOrAssignStageProblemForMatch = async (matchId, stage = 0) => {
-  const maxStageIndex = Math.max(0, STAGE_RANGES.length - 1);
-  const safeStage = Number.isFinite(stage)
-    ? Math.max(0, Math.min(maxStageIndex, Number(stage)))
-    : 0;
-
+export const getMatchProblem = async (matchId, questionIndex = 0) => {
   const match = await Match.findById(matchId);
-  if (!match) {
-    throw new ApiError(404, "Match not found");
-  }
+  if (!match) throw new ApiError(404, "Match not found");
 
-  const stageKey = String(safeStage);
-  let problemId = match.stageProblemMap?.get?.(stageKey);
+  const problemId = match.stageProblemMap?.get(String(questionIndex));
+  if (!problemId) throw new ApiError(404, `No problem assigned for question ${questionIndex}`);
 
-  if (!problemId) {
-    const range = STAGE_RANGES[safeStage] || STAGE_RANGES[0];
-    const problems = await Problem.find({
-      difficultyRating: { $gte: range.min, $lte: range.max },
-    }).select("_id");
+  const problem = await Problem.findById(problemId);
+  if (!problem) throw new ApiError(404, "Problem not found");
 
-    if (!problems || problems.length === 0) {
-      throw new ApiError(404, `No problems found for stage ${safeStage}`);
-    }
+  const visible = problem.testCases.filter((tc) => !tc.isHidden);
+  return { ...problem.toObject(), testCases: visible };
+};
 
-    problemId = problems[Math.floor(Math.random() * problems.length)]._id;
-    match.stageProblemMap.set(stageKey, problemId);
-    await match.save();
-  }
-
-  const full = await Problem.findById(problemId);
-  if (!full) {
-    throw new ApiError(404, "Assigned stage problem not found");
-  }
-
-  const visible = full.testCases.filter((tc) => !tc.isHidden);
-  return { ...full.toObject(), testCases: visible };
+// Keep old function for backward compat
+export const getOrAssignStageProblemForMatch = async (matchId, stage = 0) => {
+  return getMatchProblem(matchId, stage);
 };

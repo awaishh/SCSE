@@ -1,12 +1,22 @@
 import { Submission } from "../models/submission.model.js";
 import { PlayerState } from "../models/playerState.model.js";
 import { Match } from "../models/match.model.js";
-import { executeCode } from "./judge.service.js";
-import { getProblemWithAllTestCases } from "./problem.service.js";
-import { STAGES } from "./match.service.js";
+import { executeCode } from "./piston.service.js";
+import { getProblemWithAllTestCases, getMatchProblem } from "./problem.service.js";
+import { TOTAL_QUESTIONS } from "./match.service.js";
 
 export const submit = async (matchId, userId, problemId, language, sourceCode, io) => {
-  // 1. Create a Pending Submission
+  // 1. Validate match is live
+  const match = await Match.findById(matchId);
+  if (!match) throw new Error("Match not found");
+  if (match.status !== "LIVE") throw new Error("Match is not live");
+
+  // 2. Get player state
+  const playerState = await PlayerState.findOne({ matchId, userId });
+  if (!playerState) throw new Error("Player state not found");
+  if (!playerState.isAlive) throw new Error("You have been eliminated");
+
+  // 3. Create pending submission
   const submission = await Submission.create({
     matchId,
     userId,
@@ -16,18 +26,16 @@ export const submit = async (matchId, userId, problemId, language, sourceCode, i
     verdict: "Pending",
   });
 
-  // Update lastActiveAt so player doesn't get eliminated for inactivity
-  await PlayerState.findOneAndUpdate(
-    { matchId, userId },
-    { $set: { lastActiveAt: new Date() } }
-  );
+  // Update lastActiveAt
+  playerState.lastActiveAt = new Date();
+  await playerState.save();
 
   try {
-    // 2. Fetch real test cases from the Problem Bank
+    // 4. Fetch all test cases for this problem
     const problem = await getProblemWithAllTestCases(problemId);
-    const testCases = problem.testCases;
+    const testCases = problem.testCases || [];
 
-    if (!testCases || testCases.length === 0) {
+    if (testCases.length === 0) {
       throw new Error("No test cases found for this problem");
     }
 
@@ -35,31 +43,31 @@ export const submit = async (matchId, userId, problemId, language, sourceCode, i
     let finalOutput = null;
     let passedCount = 0;
 
-    // 3. Execute code against every test case via Judge0
+    // 5. Run against each test case
     for (let i = 0; i < testCases.length; i++) {
       const tc = testCases[i];
       const result = await executeCode(sourceCode, language, tc.input, tc.expectedOutput);
 
-      // Judge0 status.id == 3 means "Accepted"
       if (result.status.id !== 3) {
         allPassed = false;
-        // Map Judge0 status to our verdict enum
         const verdictMap = {
           4: "Wrong_Answer",
           5: "Time_Limit_Exceeded",
           6: "Compilation_Error",
           11: "Runtime_Error",
-          12: "Runtime_Error",
         };
-        submission.verdict = verdictMap[result.status.id] || "Runtime_Error";
+        submission.verdict = verdictMap[result.status.id] || "Wrong_Answer";
         finalOutput = {
           passed: false,
           passedCount,
           totalCount: testCases.length,
           error: result.stderr || result.compile_output || result.status.description,
           runtime: parseFloat(result.time || "0") * 1000,
-          memory: parseFloat(result.memory || "0"),
-          failedTestCase: tc.isHidden ? null : { input: tc.input, expected: tc.expectedOutput, got: result.stdout },
+          failedTestCase: tc.isHidden ? null : {
+            input: tc.input,
+            expected: tc.expectedOutput,
+            got: result.stdout,
+          },
         };
         break;
       }
@@ -70,50 +78,49 @@ export const submit = async (matchId, userId, problemId, language, sourceCode, i
         passedCount,
         totalCount: testCases.length,
         runtime: parseFloat(result.time || "0") * 1000,
-        memory: parseFloat(result.memory || "0"),
       };
     }
 
-    if (allPassed) {
-      submission.verdict = "Accepted";
-    }
-
+    if (allPassed) submission.verdict = "Accepted";
     submission.evaluatedAt = new Date();
     await submission.save();
 
-    // 4. Record submission event in replay
+    // 6. Record in replay — store the actual source code
     try {
-      const match = await Match.findById(matchId);
+      const { recordEvent } = await import("./replay.service.js");
       if (match?.startTime) {
-        const { recordEvent } = await import("./replay.service.js");
-        await recordEvent(matchId, "SUBMISSION", userId.toString(), {
+        await recordEvent(matchId, "submission", userId.toString(), {
           problemId,
+          problemTitle: problem.title,
           verdict: submission.verdict,
           language,
+          sourceCode, // store actual code for replay
+          questionIndex: playerState.currentStage,
           runtime: finalOutput?.runtime,
         }, match.startTime);
       }
     } catch (e) { /* silent */ }
 
-    // 5. Update Game State if Accepted
+    // 7. Update game state if accepted
     if (allPassed) {
-      await updateGameStateOnAccept(matchId, userId, io);
+      await updateGameStateOnAccept(matchId, userId, io, match);
+    } else {
+      // Increment wrong attempts
+      playerState.wrongAttempts += 1;
+      await playerState.save();
     }
 
-    // 6. Broadcast result to the match room
-    const match = await Match.findById(matchId);
-    if (match) {
-      io.to(match.roomId.toString()).emit("submission:result", {
-        userId,
-        submissionId: submission._id,
-        verdict: submission.verdict,
-        ...finalOutput,
-      });
+    // 8. Emit result to the submitting player
+    io.to(userId.toString()).emit("submission:result", {
+      userId,
+      submissionId: submission._id,
+      verdict: submission.verdict,
+      ...finalOutput,
+    });
 
-      // Broadcast updated scoreboard
-      const { broadcastScoreboard } = await import("./scoreboard.service.js");
-      await broadcastScoreboard(matchId, match.roomId.toString(), io);
-    }
+    // Also emit to room so opponent sees scoreboard update
+    const { broadcastScoreboard } = await import("./scoreboard.service.js");
+    await broadcastScoreboard(matchId, match.roomId.toString(), io);
 
     return submission;
 
@@ -121,37 +128,59 @@ export const submit = async (matchId, userId, problemId, language, sourceCode, i
     submission.verdict = "Runtime_Error";
     submission.evaluatedAt = new Date();
     await submission.save();
+
+    io.to(userId.toString()).emit("submission:result", {
+      userId,
+      submissionId: submission._id,
+      verdict: "Runtime_Error",
+      passed: false,
+      error: error.message,
+    });
+
     throw error;
   }
 };
 
-const updateGameStateOnAccept = async (matchId, userId, io) => {
-  const match = await Match.findById(matchId);
+const updateGameStateOnAccept = async (matchId, userId, io, match) => {
   const playerState = await PlayerState.findOne({ matchId, userId });
+  if (!playerState) return;
 
-  if (!match || !playerState) return;
+  const totalQuestions = TOTAL_QUESTIONS || 3;
+  const currentQ = playerState.currentStage;
+  const isLastQuestion = currentQ >= totalQuestions - 1;
 
-  const finalStageIndex = Math.max(0, STAGES.length - 1);
-  const solvedFinalStage = playerState.currentStage >= finalStageIndex;
-
-  // Increment score and advance stage
+  // Award points and advance to next question
   playerState.score += 100;
-  if (!solvedFinalStage) {
-    playerState.currentStage = Math.min(playerState.currentStage + 1, finalStageIndex);
-  }
-  await playerState.save();
 
-  // First player to finish all stages wins immediately in every mode.
-  if (solvedFinalStage) {
+  if (isLastQuestion) {
+    // Player finished all questions — they win
     playerState.status = "FINISHED";
     playerState.finishedAt = new Date();
     await playerState.save();
 
-    const { endMatch } = await import("./match.service.js");
+    // Set winner and end match
     match.winnerIds = [userId];
     await match.save();
+
+    const { endMatch } = await import("./match.service.js");
     await endMatch(matchId.toString(), io);
   } else {
-    io.to(match.roomId.toString()).emit("match:player-finished", { userId });
+    // Advance to next question
+    playerState.currentStage = currentQ + 1;
+    await playerState.save();
+
+    // Notify the player their next question is ready
+    const nextProblem = await getMatchProblem(matchId, playerState.currentStage);
+    io.to(userId.toString()).emit("match:next-question", {
+      questionIndex: playerState.currentStage,
+      problem: nextProblem,
+    });
+
+    // Notify room that this player advanced
+    io.to(match.roomId.toString()).emit("match:player-advanced", {
+      userId,
+      questionIndex: playerState.currentStage,
+      score: playerState.score,
+    });
   }
 };

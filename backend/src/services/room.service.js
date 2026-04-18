@@ -85,7 +85,7 @@ export const leaveRoom = async (userId, roomId) => {
   }
 
   if (room.status !== "WAITING") {
-    throw new ApiError(400, "Cannot leave a room that is in progress");
+    console.log(`[Room] User ${userId} leaving active room ${roomId} (Status: ${room.status})`);
   }
 
   // Remove the player from the array

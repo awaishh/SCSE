@@ -1,128 +1,86 @@
-import { useEffect, useState, useRef } from "react";
+/**
+ * Replay — shows what each player submitted for each question.
+ * No timestamps, no playback. Just code viewer.
+ */
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import roomAPI from "../services/roomAPI";
-import { motion } from "framer-motion";
+import Editor from "@monaco-editor/react";
 
 const Replay = () => {
   const { matchId } = useParams();
   const navigate = useNavigate();
-  const [replayData, setReplayData] = useState(null);
+  const [replay, setReplay] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // Playback State
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0); // in ms
-  const [maxTime, setMaxTime] = useState(1000);
-
-  const timerRef = useRef(null);
+  const [selected, setSelected] = useState(null); // { playerName, questionIndex, language, sourceCode, verdict, history: [] }
+  const [playing, setPlaying] = useState(null); // { index: 0, interval: null }
 
   useEffect(() => {
-    const fetchReplay = async () => {
-      try {
-        const { data } = await roomAPI.get(`/replay/${matchId}`);
-        const replay = data.data;
-        setReplayData(replay);
-
-        if (replay.events && replay.events.length > 0) {
-          setMaxTime(replay.events[replay.events.length - 1].offsetMs || 1000);
-        }
-      } catch (err) {
-        console.error("Failed to fetch replay:", err);
-        setError(err.response?.data?.message || "Failed to load replay");
-      } finally {
+    roomAPI.get(`/replay/${matchId}`)
+      .then(({ data }) => {
+        setReplay(data.data);
         setLoading(false);
-      }
-    };
-
-    fetchReplay();
+      })
+      .catch((err) => {
+        setError(err.response?.data?.message || "Replay not available yet");
+        setLoading(false);
+      });
   }, [matchId]);
 
-  // Playback timer
+  // Clean up playback on unmount or selection change
   useEffect(() => {
-    if (isPlaying) {
-      timerRef.current = setInterval(() => {
-        setCurrentTime((prev) => {
-          if (prev >= maxTime) {
-            setIsPlaying(false);
-            return maxTime;
-          }
-          return prev + 500; // 0.5s steps for smoother playback
-        });
-      }, 500);
-    } else {
-      clearInterval(timerRef.current);
-    }
-    return () => clearInterval(timerRef.current);
-  }, [isPlaying, maxTime]);
+    return () => {
+      if (playing?.interval) clearInterval(playing.interval);
+    };
+  }, [playing]);
 
-  const togglePlay = () => {
-    if (currentTime >= maxTime) setCurrentTime(0);
-    setIsPlaying(!isPlaying);
+  const startPlayback = (sub) => {
+    if (playing?.interval) clearInterval(playing.interval);
+    
+    // Create a series of snapshots: start with empty or template, then all history, finally the submission
+    const history = sub.history || [];
+    if (history.length === 0) return;
+
+    let idx = 0;
+    const interval = setInterval(() => {
+      setPlaying(prev => {
+        if (!prev) return null;
+        const nextIdx = prev.index + 1;
+        if (nextIdx >= history.length) {
+          clearInterval(interval);
+          return { ...prev, index: nextIdx - 1, isFinished: true };
+        }
+        return { ...prev, index: nextIdx };
+      });
+    }, 500); // 500ms between snapshots for "video" feel
+
+    setPlaying({ index: 0, interval, isFinished: false });
   };
 
-  const formatTime = (ms) => {
-    const totalSeconds = Math.floor(ms / 1000);
-    const m = Math.floor(totalSeconds / 60);
-    const s = totalSeconds % 60;
-    return `${m}:${s < 10 ? "0" : ""}${s}`;
+  const stopPlayback = () => {
+    if (playing?.interval) clearInterval(playing.interval);
+    setPlaying(null);
   };
 
-  // Get events that have occurred up to currentTime
-  const visibleEvents = replayData?.events?.filter(
-    (e) => e.offsetMs <= currentTime
-  ) || [];
-
-  // Get the event icon and color based on type
-  const getEventStyle = (type) => {
-    switch (type) {
-      case "SUBMISSION":
-      case "submission":
-        return { icon: "📝", color: "bg-violet-100 text-violet-700 border-violet-200" };
-      case "elimination":
-        return { icon: "💀", color: "bg-red-100 text-red-700 border-red-200" };
-      case "stage_advance":
-        return { icon: "⬆️", color: "bg-emerald-100 text-emerald-700 border-emerald-200" };
-      case "match_start":
-        return { icon: "🏁", color: "bg-blue-100 text-blue-700 border-blue-200" };
-      case "match_end":
-        return { icon: "🏆", color: "bg-yellow-100 text-yellow-700 border-yellow-200" };
-      case "scoreboard_snapshot":
-        return { icon: "📊", color: "bg-gray-100 text-gray-700 border-gray-200" };
-      default:
-        return { icon: "📌", color: "bg-gray-100 text-gray-600 border-gray-200" };
-    }
-  };
-
-  // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-10 h-10 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-500 text-sm">Loading replay...</p>
-        </div>
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <span className="w-6 h-6 border-2 border-violet-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
-  // Error / Not Found state
-  if (error || !replayData) {
+  if (error || !replay) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center px-4">
         <div className="text-center">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl">🎬</span>
-          </div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">
-            Replay Not Available
-          </h2>
-          <p className="text-gray-500 text-sm max-w-sm">
-            {error || "This match replay hasn't been finalized yet. It will be available after the match ends."}
-          </p>
+          <p className="text-2xl mb-3">🎬</p>
+          <h2 className="text-xl font-bold text-[#111827] mb-2">Replay Not Available</h2>
+          <p className="text-sm text-gray-400 mb-6">{error || "This replay hasn't been finalized yet."}</p>
           <button
             onClick={() => navigate("/dashboard")}
-            className="mt-6 px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold rounded-lg transition-colors"
+            className="px-5 py-2.5 bg-[#111827] text-white text-sm font-semibold rounded-lg"
           >
             Back to Dashboard
           </button>
@@ -131,269 +89,223 @@ const Replay = () => {
     );
   }
 
+  // 1. Group events by user
+  const events = replay.events || [];
+  const playerGroups = {};
+
+  events.forEach((ev) => {
+    const uid = ev.userId?._id || ev.userId;
+    const name = ev.userId?.name || "Unknown Player";
+    if (!playerGroups[uid]) {
+      playerGroups[uid] = { name, submissions: [], updates: [] };
+    }
+    
+    if (ev.type === "submission" || ev.type === "SUBMISSION") {
+      playerGroups[uid].submissions.push(ev);
+    } else if (ev.type === "code_update") {
+      playerGroups[uid].updates.push(ev);
+    }
+  });
+
+  // 2. Build display list per player
+  const playersData = Object.entries(playerGroups).map(([uid, group]) => {
+    // For each submission, find the code updates that happened BEFORE it but AFTER the previous submission
+    const subs = group.submissions.map((s, i) => {
+      const prevTime = i === 0 ? 0 : group.submissions[i-1].offsetMs;
+      const history = group.updates
+        .filter(u => u.offsetMs > prevTime && u.offsetMs <= s.offsetMs)
+        .map(u => ({ sourceCode: u.data.sourceCode, offsetMs: u.offsetMs }));
+      
+      // Add the final submission code as the last frame
+      history.push({ sourceCode: s.data.sourceCode, offsetMs: s.offsetMs });
+
+      return {
+        playerName: group.name,
+        questionIndex: s.data.questionIndex ?? 0,
+        language: s.data.language || "javascript",
+        sourceCode: s.data.sourceCode || "// No code",
+        verdict: s.data.verdict || "Unknown",
+        problemTitle: s.data.problemTitle || `Question ${(s.data.questionIndex ?? 0) + 1}`,
+        history,
+      };
+    });
+
+    return { name: group.name, subs };
+  });
+
+  const verdictStyle = (v) => {
+    if (v === "Accepted") return "bg-emerald-50 text-emerald-600 border-emerald-100";
+    return "bg-red-50 text-red-500 border-red-100";
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-800 flex flex-col font-sans">
-      {/* Header */}
-      <motion.header
-        initial={{ y: -40, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shadow-sm"
-      >
-        <div className="flex items-center gap-4">
-          <span className="text-lg font-bold text-violet-600">🎬 Match Replay</span>
-          <span className="text-xs text-gray-400 font-mono bg-gray-100 px-2 py-1 rounded">
-            {matchId?.slice(0, 8)}...
-          </span>
+    <div className="min-h-screen bg-white text-[#111827]">
+      {/* Nav */}
+      <nav className="border-b border-gray-100 px-8 py-4 flex justify-between items-center">
+        <div className="flex items-center gap-2">
+          <span className="font-bold">Battle</span>
+          <span className="font-bold text-violet-600">Arena</span>
+          <span className="mx-2 text-gray-200">|</span>
+          <span className="text-sm text-gray-500">Match Replay</span>
         </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-500">
-            {replayData.events?.length || 0} events recorded
-          </span>
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="text-sm text-gray-500 hover:text-violet-600 font-medium transition-colors"
-          >
-            ← Exit Replay
-          </button>
+        <button onClick={() => navigate("/dashboard")} className="text-xs text-gray-400 hover:text-[#111827] transition-colors">
+          ← Dashboard
+        </button>
+      </nav>
+
+      <div className="max-w-5xl mx-auto px-6 py-10">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold tracking-tight">Match Replay</h1>
+          <p className="text-gray-400 text-sm mt-1">Review what each player submitted</p>
         </div>
-      </motion.header>
 
-      <div className="flex-1 flex flex-col lg:flex-row p-6 gap-6 max-w-7xl mx-auto w-full">
-        {/* Left: Event Timeline */}
-        <motion.div
-          initial={{ x: -30, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ delay: 0.1 }}
-          className="lg:w-2/5 flex flex-col bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden"
-        >
-          <div className="p-4 border-b border-gray-100 bg-gray-50">
-            <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
-              Match Timeline
-            </h3>
-            <p className="text-xs text-gray-400 mt-1">
-              Events replay as the timer advances
-            </p>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-4 space-y-2 max-h-[60vh]">
-            {replayData.events?.length === 0 ? (
-              <p className="text-gray-400 text-sm text-center py-8">
-                No events were recorded for this match.
-              </p>
-            ) : (
-              replayData.events.map((event, idx) => {
-                const isVisible = event.offsetMs <= currentTime;
-                const style = getEventStyle(event.type);
-                return (
-                  <motion.div
-                    key={idx}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{
-                      opacity: isVisible ? 1 : 0.3,
-                      x: 0,
-                    }}
-                    transition={{ duration: 0.2 }}
-                    className={`flex items-start gap-3 p-3 rounded-lg border transition-all ${
-                      isVisible ? style.color : "bg-gray-50 text-gray-400 border-gray-100"
-                    }`}
-                  >
-                    <span className="text-lg mt-0.5">{style.icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold uppercase tracking-wider">
-                          {event.type.replace(/_/g, " ")}
-                        </span>
-                        <span className="text-[10px] font-mono opacity-70">
-                          {formatTime(event.offsetMs)}
-                        </span>
-                      </div>
-                      {event.userId?.name && (
-                        <p className="text-xs mt-0.5 opacity-80">
-                          by {event.userId.name}
-                        </p>
-                      )}
-                      {event.data?.verdict && (
-                        <span
-                          className={`inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                            event.data.verdict === "Accepted"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-red-100 text-red-700"
-                          }`}
-                        >
-                          {event.data.verdict.replace(/_/g, " ")}
-                        </span>
-                      )}
-                      {event.data?.reason && (
-                        <p className="text-[10px] mt-1 opacity-60">
-                          Reason: {event.data.reason}
-                        </p>
-                      )}
-                      {event.data?.gameMode && (
-                        <p className="text-[10px] mt-1 opacity-60">
-                          Mode: {event.data.gameMode.replace(/_/g, " ")}
-                        </p>
-                      )}
-                    </div>
-                  </motion.div>
-                );
-              })
-            )}
-          </div>
-        </motion.div>
-
-        {/* Right: Final Scoreboard + Info */}
-        <motion.div
-          initial={{ x: 30, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="lg:w-3/5 flex flex-col gap-6"
-        >
-          {/* Final Scoreboard */}
-          {replayData.finalScoreboard && (
-            <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-              <div className="p-4 border-b border-gray-100 bg-gray-50">
-                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
-                  🏆 Final Standings
-                </h3>
+        {/* Final scoreboard */}
+        {replay.finalScoreboard?.length > 0 && (
+          <div className="mb-8 border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+            <div className="px-5 py-3 bg-gray-50 border-b border-gray-100">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Final Result</p>
+            </div>
+            {replay.finalScoreboard.map((p, i) => (
+              <div key={i} className={`flex items-center justify-between px-5 py-4 ${i > 0 ? "border-t border-gray-100" : ""}`}>
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">{i === 0 ? "🥇" : "🥈"}</span>
+                  <p className="text-sm font-bold">{p.userId?.name || `Player ${i + 1}`}</p>
+                </div>
+                <div className="flex items-center gap-4 text-xs text-gray-400">
+                  <span>Q{(p.currentStage || 0) + 1} reached</span>
+                  <span>{p.wrongAttempts || 0} wrong</span>
+                  <span className="font-black text-violet-600 text-sm">{p.score || 0} pts</span>
+                </div>
               </div>
-              <div className="p-4 space-y-2">
-                {(Array.isArray(replayData.finalScoreboard)
-                  ? replayData.finalScoreboard
-                  : []
-                ).map((player, idx) => (
-                  <div
-                    key={player.userId?._id || player.userId || idx}
-                    className={`flex items-center justify-between p-3 rounded-lg border ${
-                      idx === 0
-                        ? "bg-yellow-50 border-yellow-200"
-                        : idx === 1
-                        ? "bg-gray-50 border-gray-200"
-                        : idx === 2
-                        ? "bg-orange-50 border-orange-200"
-                        : "bg-white border-gray-100"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg w-8 text-center">
-                        {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `#${idx + 1}`}
-                      </span>
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white">
-                        {(player.userId?.name || "P")?.[0]}
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-gray-800">
-                          {player.userId?.name || `Player ${idx + 1}`}
-                        </p>
-                        <p className="text-[10px] text-gray-400">
-                          Stage {player.currentStage || 0} • {player.wrongAttempts || 0} wrong
-                        </p>
-                      </div>
+            ))}
+          </div>
+        )}
+
+        {playersData.length === 0 ? (
+          <div className="text-center py-16 border-2 border-dashed border-gray-200 rounded-xl">
+            <p className="text-gray-400 text-sm">No submissions were recorded for this match.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {playersData.map((player) => (
+              <div key={player.name} className="border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+                <div className="px-5 py-4 bg-gray-50 border-b border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-xs font-bold text-violet-700">
+                      {player.name[0]?.toUpperCase()}
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-violet-600">
-                        {player.score || 0} pts
-                      </p>
-                      {!player.isAlive && (
-                        <p className="text-[10px] text-red-500 font-medium">Eliminated</p>
-                      )}
-                    </div>
+                    <p className="text-sm font-bold text-[#111827]">{player.name}</p>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+                </div>
 
-          {/* Match Stats Summary */}
-          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
-            <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">
-              Match Stats
-            </h3>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="text-center p-4 bg-violet-50 rounded-lg border border-violet-100">
-                <p className="text-2xl font-bold text-violet-600">
-                  {replayData.events?.filter((e) => e.type === "SUBMISSION" || e.type === "submission").length || 0}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">Submissions</p>
+                <div className="divide-y divide-gray-100">
+                  {player.subs.map((sub, i) => (
+                    <div key={i} className="flex flex-col group hover:bg-gray-50 transition-colors">
+                      <div className="w-full flex items-center justify-between px-5 py-3.5 text-left">
+                        <div>
+                          <p className="text-sm font-semibold text-[#111827]">{sub.problemTitle}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{sub.language} · {sub.history.length} snapshots</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${verdictStyle(sub.verdict)}`}>
+                            {sub.verdict === "Accepted" ? "AC" : "WA"}
+                          </span>
+                          <button
+                            onClick={() => setSelected(sub)}
+                            className="bg-[#111827] text-white text-[10px] font-bold px-3 py-1.5 rounded-lg hover:bg-gray-800 transition-all opacity-0 group-hover:opacity-100"
+                          >
+                            View
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="text-center p-4 bg-emerald-50 rounded-lg border border-emerald-100">
-                <p className="text-2xl font-bold text-emerald-600">
-                  {replayData.events?.filter(
-                    (e) => (e.type === "SUBMISSION" || e.type === "submission") && e.data?.verdict === "Accepted"
-                  ).length || 0}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">Accepted</p>
-              </div>
-              <div className="text-center p-4 bg-red-50 rounded-lg border border-red-100">
-                <p className="text-2xl font-bold text-red-600">
-                  {replayData.events?.filter((e) => e.type === "elimination").length || 0}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">Eliminations</p>
-              </div>
-            </div>
+            ))}
           </div>
-
-          {/* Playback info */}
-          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 text-center text-sm text-gray-500">
-            <p>
-              Use the timeline controls below to step through match events.
-              Events will appear on the left panel as the timer advances.
-            </p>
-          </div>
-        </motion.div>
+        )}
       </div>
 
-      {/* Bottom Playback Controls */}
-      <motion.div
-        initial={{ y: 40, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.3 }}
-        className="h-24 bg-white border-t border-gray-200 px-6 flex flex-col justify-center gap-2 shadow-lg"
-      >
-        {/* Timeline Slider */}
-        <input
-          type="range"
-          min="0"
-          max={maxTime}
-          value={currentTime}
-          onChange={(e) => {
-            setCurrentTime(Number(e.target.value));
-            setIsPlaying(false);
-          }}
-          className="w-full accent-violet-500 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-        />
+      {/* Code viewer modal */}
+      {selected && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden border border-gray-100">
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100 bg-gray-50/50">
+              <div>
+                <p className="font-bold text-lg text-[#111827]">{selected.problemTitle}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-xs text-gray-500">{selected.playerName} · {selected.language}</span>
+                  <span className="text-gray-300">·</span>
+                  <span className={`text-xs font-bold ${selected.verdict === "Accepted" ? "text-emerald-600" : "text-red-500"}`}>
+                    {selected.verdict}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                {selected.history?.length > 0 && !playing && (
+                   <button 
+                    onClick={() => startPlayback(selected)}
+                    className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-emerald-700 transition-all"
+                   >
+                     ▶ Play Replay
+                   </button>
+                )}
+                {playing && (
+                   <button 
+                    onClick={stopPlayback}
+                    className="flex items-center gap-2 bg-red-500 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-red-600 transition-all"
+                   >
+                     ■ Stop
+                   </button>
+                )}
+                <button
+                  onClick={() => { setSelected(null); stopPlayback(); }}
+                  className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-all text-xl"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
 
-        <div className="flex justify-between items-center px-2">
-          <span className="text-xs font-mono text-gray-400">{formatTime(0)}</span>
+            {/* Playback progress bar */}
+            {playing && (
+              <div className="h-1 bg-gray-100 w-full overflow-hidden">
+                <div 
+                  className="h-full bg-emerald-500 transition-all duration-500"
+                  style={{ width: `${((playing.index + 1) / selected.history.length) * 100}%` }}
+                />
+              </div>
+            )}
 
-          <div className="flex items-center gap-6">
-            <button
-              onClick={() => setCurrentTime(Math.max(0, currentTime - 5000))}
-              className="text-gray-400 hover:text-violet-600 transition-colors text-lg"
-              title="Back 5s"
-            >
-              ⏪
-            </button>
-
-            <button
-              onClick={togglePlay}
-              className="w-12 h-12 bg-violet-600 hover:bg-violet-500 text-white rounded-full flex items-center justify-center shadow-md transition-all active:scale-95"
-              title={isPlaying ? "Pause" : "Play"}
-            >
-              <span className="text-xl">{isPlaying ? "⏸" : "▶"}</span>
-            </button>
-
-            <button
-              onClick={() => setCurrentTime(Math.min(maxTime, currentTime + 5000))}
-              className="text-gray-400 hover:text-violet-600 transition-colors text-lg"
-              title="Forward 5s"
-            >
-              ⏩
-            </button>
+            {/* Monaco Editor */}
+            <div className="relative">
+              <Editor
+                height="450px"
+                language={selected.language === "cpp" ? "cpp" : selected.language}
+                value={playing ? selected.history[playing.index]?.sourceCode : selected.sourceCode}
+                theme="light"
+                options={{
+                  readOnly: true,
+                  minimap: { enabled: false },
+                  fontSize: 13,
+                  fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+                  lineHeight: 22,
+                  padding: { top: 20 },
+                  scrollBeyondLastLine: false,
+                  renderLineHighlight: "none",
+                }}
+              />
+              {playing && (
+                <div className="absolute top-4 right-8 bg-black/80 text-white px-3 py-1.5 rounded-full text-[10px] font-bold font-mono backdrop-blur-md">
+                  T +{Math.round(selected.history[playing.index].offsetMs / 1000)}s
+                </div>
+              )}
+            </div>
           </div>
-
-          <span className="text-xs font-mono text-gray-400">{formatTime(maxTime)}</span>
         </div>
-      </motion.div>
+      )}
     </div>
   );
 };

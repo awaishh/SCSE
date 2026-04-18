@@ -3,9 +3,9 @@ import { PlayerState } from "../models/playerState.model.js";
 import { Room, GAME_MODES } from "../models/room.model.js";
 import { ApiError } from "../utils/api-error.js";
 
-// Keep matches minimal to reduce external API usage.
-// One stage means one question per match across all game modes.
-export const STAGES = [1100];
+// 1v1 match: 3 questions total (indices 0, 1, 2)
+export const STAGES = [0, 1, 2];
+export const TOTAL_QUESTIONS = 3;
 
 // Team modes where winners are determined by team aggregate score
 const TEAM_MODES = new Set(["TEAM_DUEL_2V2", "TEAM_DUEL_3V3", "ICPC_STYLE"]);
@@ -91,6 +91,70 @@ async function _goLive(matchId, roomId, io) {
       console.error('[match] auto-end failed:', e.message);
     }
   }, matchDurationMs);
+
+  // --- NEW: Forced question advancement every 5 minutes for Blitz matches ---
+  if (BLITZ_MODES.includes(match.gameMode)) {
+    _setupForcedAdvancementTimers(matchId, roomId, io);
+  }
+}
+
+/**
+ * Handle forced advancement for all players to the next stage at fixed intervals.
+ * T+5 mins: Move to Q2 (index 1)
+ * T+10 mins: Move to Q3 (index 2)
+ */
+async function _setupForcedAdvancementTimers(matchId, roomId, io) {
+  // Timer for Q2 (at 5 minutes)
+  setTimeout(async () => {
+    await _forceAdvanceToStage(matchId, 1, io, roomId);
+  }, 5 * 60 * 1000);
+
+  // Timer for Q3 (at 10 minutes)
+  setTimeout(async () => {
+    await _forceAdvanceToStage(matchId, 2, io, roomId);
+  }, 10 * 60 * 1000);
+}
+
+async function _forceAdvanceToStage(matchId, targetStage, io, roomId) {
+  try {
+    const match = await Match.findById(matchId);
+    if (!match || match.status !== "LIVE") return;
+
+    console.log(`[match] Force advancing match ${matchId} players to stage ${targetStage}`);
+
+    // Find all players still behind the target stage
+    const playersToAdvance = await PlayerState.find({
+      matchId,
+      currentStage: { $lt: targetStage },
+      isAlive: true,
+      status: "PLAYING"
+    });
+
+    if (playersToAdvance.length === 0) return;
+
+    for (const ps of playersToAdvance) {
+      ps.currentStage = targetStage;
+      await ps.save();
+
+      // Notify the individual player
+      const { getMatchProblem } = await import("./problem.service.js");
+      const nextProblem = await getMatchProblem(matchId, targetStage);
+      
+      io.to(ps.userId.toString()).emit("match:next-question", {
+        questionIndex: targetStage,
+        problem: nextProblem,
+        forced: true // indicate this was a timed advancement
+      });
+    }
+
+    // Notify room that players advanced
+    io.to(roomId.toString()).emit("match:forced-advancement", {
+      stage: targetStage
+    });
+
+  } catch (err) {
+    console.error(`[match] forced advancement to stage ${targetStage} failed:`, err.message);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -159,15 +223,12 @@ export const startMatch = async (roomId, hostId, io) => {
   });
   await PlayerState.insertMany(playerStateDocs);
 
-  // Pre-assign deterministic problems for all configured stages so every player
-  // in this match sees identical questions per stage.
+  // Assign 3 random problems for this match
   try {
-    const { getOrAssignStageProblemForMatch } = await import("./problem.service.js");
-    for (let stage = 0; stage < STAGES.length; stage++) {
-      await getOrAssignStageProblemForMatch(match._id.toString(), stage);
-    }
+    const { assignMatchProblems } = await import("./problem.service.js");
+    await assignMatchProblems(match._id.toString());
   } catch (err) {
-    console.error("[match:start] stage problem pre-assignment failed:", err.message);
+    console.error("[match:start] problem assignment failed:", err.message);
   }
 
   // Notify clients that the countdown has begun

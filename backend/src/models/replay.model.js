@@ -18,6 +18,7 @@ const replayEventSchema = new mongoose.Schema(
         "scoreboard_snapshot",
         "match_start",
         "match_end",
+        "code_update",
       ],
       required: true,
     },

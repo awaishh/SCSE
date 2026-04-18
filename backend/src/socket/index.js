@@ -79,6 +79,11 @@ export const initSocket = (server) => {
     const userId = socket.user?._id;
     console.log(`[Socket] Connected: ${socket.id} (user: ${userId})`);
 
+    // CRITICAL: Join user-specific room so backend can target this user via io.to(userId)
+    if (userId) {
+      socket.join(userId.toString());
+    }
+
     // Per-socket rate limiter instance
     const rateLimit = createRateLimiter();
 
@@ -88,6 +93,7 @@ export const initSocket = (server) => {
       "room:join": 3,
       "room:leave": 3,
       "submit:code": 3,
+      "code:sync": 10,
       "match:start": 2,
       "match:end": 2,
       "match:join": 5,
@@ -186,6 +192,18 @@ export const initSocket = (server) => {
 
         if (room) {
           io.to(room._id.toString()).emit("room:updated", { room });
+
+          // If room was in match and no opponents left, end match
+          if (room.status !== "WAITING") {
+            const { Match } = await import("../models/match.model.js");
+            const match = await Match.findOne({ roomId: room._id, status: "LIVE" });
+            if (match) {
+              const { endMatch } = await import("../services/match.service.js");
+              // End match if everyone left or if it's 1v1 and someone left
+              await endMatch(match._id.toString(), io);
+              console.log(`[Match] Auto-ending match ${match._id} because a player left.`);
+            }
+          }
         }
 
         socket.emit("room:left", { success: true });
@@ -380,6 +398,34 @@ export const initSocket = (server) => {
         socket.emit("submit:ack", { submissionId: submission._id, verdict: submission.verdict });
       } catch (err) {
         socket.emit("submit:error", { message: err.message });
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // Code: Sync (real-time code updates for replay/spectating)
+    // Client emits { matchId, sourceCode, language }
+    // -----------------------------------------------------------------------
+    socket.on("code:sync", async ({ matchId, sourceCode, language } = {}) => {
+      try {
+        if (!matchId || sourceCode === undefined) return;
+        
+        // Record in replay if match is live
+        const { Match } = await import("../models/match.model.js");
+        const match = await Match.findById(matchId);
+        
+        if (match && match.status === "LIVE" && match.startTime) {
+          const { recordEvent } = await import("../services/replay.service.js");
+          await recordEvent(
+            matchId,
+            "code_update",
+            socket.user._id,
+            { sourceCode, language },
+            match.startTime
+          );
+        }
+      } catch (err) {
+        // Silent error for sync events to prevent crashing
+        console.error("[code:sync] failed:", err.message);
       }
     });
 
