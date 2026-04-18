@@ -103,10 +103,18 @@ export const initSocket = (server) => {
     // Wrap socket.on to inject rate limiting for all game events
     const _originalOn = socket.on.bind(socket);
     socket.on = (event, handler) => {
-      // Skip rate limiting for internal socket.io events
-      if (event === "disconnect" || event === "error" || event === "connect") {
+      // Skip rate limiting for internal socket.io, 'room:', and 'match:' events
+      const isWhitelisted = 
+        event === "disconnect" || 
+        event === "error" || 
+        event === "connect" ||
+        event.startsWith("room:") || 
+        event.startsWith("match:");
+
+      if (isWhitelisted) {
         return _originalOn(event, handler);
       }
+
       return _originalOn(event, async (...args) => {
         const limit = RATE_LIMITS[event] || RATE_LIMITS._default;
         if (!rateLimit(event, limit)) {
