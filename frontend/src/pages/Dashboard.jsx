@@ -1,18 +1,48 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import roomAPI from "../services/roomAPI";
+import Lenis from "lenis";
+import gsap from "gsap";
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [loggingOut, setLoggingOut] = useState(false);
+  const containerRef = useRef(null);
 
   useEffect(() => {
     roomAPI.get("/matches/stats/me")
       .then(({ data }) => setStats(data.data))
       .catch(() => {}); // silently fail if no matches yet
+  }, []);
+
+  useEffect(() => {
+    const lenis = new Lenis({ smoothTouch: true, duration: 1.2 });
+    function raf(time) {
+      lenis.raf(time);
+      requestAnimationFrame(raf);
+    }
+    requestAnimationFrame(raf);
+    gsap.ticker.add((time) => lenis.raf(time * 1000));
+    gsap.ticker.lagSmoothing(0);
+
+    const ctx = gsap.context(() => {
+      gsap.from(".dash-anim", {
+        y: 40,
+        opacity: 0,
+        duration: 0.8,
+        stagger: 0.15,
+        ease: "power3.out"
+      });
+    }, containerRef);
+
+    return () => {
+      ctx.revert();
+      lenis.destroy();
+      gsap.ticker.remove((time) => lenis.raf(time * 1000));
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -22,58 +52,60 @@ const Dashboard = () => {
   };
 
   const StatBox = ({ label, value, sub }) => (
-    <div className="border border-gray-100 rounded-xl p-5">
-      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{label}</p>
-      <p className="text-2xl font-black text-[#111827]">{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+    <div className="bg-[#181827] border border-[#302E46] rounded-xl p-5 shadow-[0_10px_20px_rgba(0,0,0,0.3)]">
+      <p className="text-xs font-semibold text-[#A9A8B8] uppercase tracking-wide mb-1 transition-colors">{label}</p>
+      <p className="text-2xl font-black text-white">{value}</p>
+      {sub && <p className="text-xs text-[#B7FF2A] mt-0.5 font-semibold">{sub}</p>}
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-white text-[#111827]">
+    <div className="min-h-screen bg-[#13121B] text-white font-['Satoshi']" ref={containerRef}>
       {/* Nav */}
-      <nav className="border-b border-gray-100 px-8 py-4 flex justify-between items-center">
+      <nav className="border-b border-[#302E46] px-8 py-5 flex justify-between items-center bg-[#181827]">
         <div className="flex items-center gap-2">
-          <span className="font-bold">Battle</span>
-          <span className="font-bold text-violet-600">Arena</span>
+          <span className="font-[Orbitron] font-black tracking-widest text-[#B7FF2A] text-xl">KRYPTCODE</span>
+          <span className="font-[Orbitron] font-bold tracking-widest text-white text-xl">ARENA</span>
         </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-400 hidden sm:block">
+        <div className="flex items-center gap-6">
+          <span className="text-sm font-semibold text-[#A9A8B8] hidden sm:block tracking-wide uppercase">
             {user?.name}
           </span>
           <button
             onClick={handleLogout}
             disabled={loggingOut}
-            className="text-xs text-gray-400 hover:text-red-500 transition-colors font-semibold disabled:opacity-50"
+            className="text-xs text-[#A9A8B8] border border-[#302E46] px-4 py-2 rounded-full hover:text-white hover:border-[#A9A8B8] transition-all font-bold tracking-widest disabled:opacity-50 uppercase"
           >
-            {loggingOut ? "Leaving..." : "Logout"}
+            {loggingOut ? "LEAVING..." : "LOGOUT"}
           </button>
         </div>
       </nav>
 
-      <div className="max-w-2xl mx-auto px-6 py-12 space-y-10">
+      <div className="max-w-3xl mx-auto px-6 py-12 space-y-10">
 
         {/* Welcome */}
-        <div>
-          <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Welcome back</p>
-          <h1 className="text-4xl font-black text-[#111827] tracking-tight">{user?.name}</h1>
-          <p className="text-gray-400 text-sm mt-1">{user?.email}</p>
+        <div className="dash-anim">
+          <p className="text-xs font-bold text-[#A9A8B8] uppercase tracking-widest mb-2">Welcome Back to the Arena</p>
+          <h1 className="text-4xl font-[Orbitron] font-black text-white tracking-widest uppercase">{user?.name}</h1>
+          <p className="text-[#6D6A7E] text-sm mt-1">{user?.email}</p>
         </div>
 
         {/* Play button */}
-        <Link
-          to="/lobby"
-          className="block w-full bg-[#111827] hover:bg-gray-800 text-white py-4 rounded-xl text-center text-sm font-bold transition-all"
-        >
-          ⚔️ Play Blitz 1v1
-        </Link>
+        <div className="dash-anim">
+           <Link
+             to="/lobby"
+             className="block w-full bg-[#B7FF2A] hover:bg-[#A6F11F] text-[#13121B] py-5 rounded-xl text-center text-sm font-[Orbitron] font-bold tracking-widest transition-all shadow-[0_0_20px_rgba(183,255,42,0.2)]"
+           >
+             ⚔️ ENTER BLITZ 1V1
+           </Link>
+        </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 dash-anim">
           <StatBox
             label="Rating"
             value={stats?.global?.rating ?? user?.rating ?? 1000}
-            sub={stats?.global?.rankTier || "Silver"}
+            sub={stats?.global?.rankTier || "Silver Tier"}
           />
           <StatBox
             label="Matches"
@@ -89,21 +121,37 @@ const Dashboard = () => {
           />
         </div>
 
+        {/* Quick links */}
+        <div className="grid grid-cols-3 gap-4 dash-anim">
+          <Link to="/match-history" className="bg-[#181827] border border-[#302E46] rounded-xl p-5 text-center hover:border-[#B7FF2A] transition-all group">
+            <p className="text-2xl mb-2 group-hover:scale-110 transition-transform">📋</p>
+            <p className="text-xs font-bold font-[Orbitron] tracking-widest text-white uppercase">History</p>
+          </Link>
+          <Link to="/leaderboard" className="bg-[#181827] border border-[#302E46] rounded-xl p-5 text-center hover:border-[#B7FF2A] transition-all group">
+            <p className="text-2xl mb-2 group-hover:scale-110 transition-transform">🏆</p>
+            <p className="text-xs font-bold font-[Orbitron] tracking-widest text-white uppercase">Rankings</p>
+          </Link>
+          <Link to="/guild" className="bg-[#181827] border border-[#302E46] rounded-xl p-5 text-center hover:border-[#B7FF2A] transition-all group">
+            <p className="text-2xl mb-2 group-hover:scale-110 transition-transform">⚔️</p>
+            <p className="text-xs font-bold font-[Orbitron] tracking-widest text-white uppercase">Guild</p>
+          </Link>
+        </div>
+
         {/* Recent matches */}
         {stats?.recentMatches?.length > 0 && (
-          <div>
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Recent Matches</p>
-            <div className="space-y-2">
+          <div className="dash-anim">
+            <p className="text-xs font-bold font-[Orbitron] text-[#A9A8B8] uppercase tracking-widest mb-4">Recent Battles</p>
+            <div className="space-y-3">
               {stats.recentMatches.map((m) => (
-                <div key={m.matchId} className="flex items-center justify-between px-4 py-3 border border-gray-100 rounded-lg">
+                <div key={m.matchId} className="flex items-center justify-between px-5 py-4 bg-[#181827] border border-[#302E46] hover:bg-[#1C1A2A] transition-colors rounded-xl">
                   <div>
-                    <p className="text-sm font-semibold">{m.gameMode?.replace(/_/g, " ")}</p>
-                    <p className="text-xs text-gray-400">{new Date(m.date).toLocaleDateString()}</p>
+                    <p className="text-sm font-bold text-white uppercase tracking-wide">{m.gameMode?.replace(/_/g, " ")}</p>
+                    <p className="text-[10px] text-[#A9A8B8] mt-1 font-semibold uppercase">{new Date(m.date).toLocaleDateString()}</p>
                   </div>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${
-                    m.isWinner ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-red-50 text-red-500 border-red-100"
+                  <span className={`text-[10px] font-black px-3 py-1 rounded border tracking-widest uppercase ${
+                    m.isWinner ? "bg-[rgba(183,255,42,0.1)] text-[#B7FF2A] border-[rgba(183,255,42,0.2)]" : "bg-red-500/10 text-red-500 border-red-500/20"
                   }`}>
-                    {m.isWinner ? "WIN" : "LOSS"}
+                    {m.isWinner ? "VICTORY" : "DEFEAT"}
                   </span>
                 </div>
               ))}
@@ -111,35 +159,19 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Quick links */}
-        <div className="grid grid-cols-3 gap-3">
-          <Link to="/match-history" className="border border-gray-100 rounded-xl p-4 text-center hover:border-gray-200 transition-all">
-            <p className="text-lg mb-1">📋</p>
-            <p className="text-xs font-semibold text-[#111827]">History</p>
-          </Link>
-          <Link to="/leaderboard" className="border border-gray-100 rounded-xl p-4 text-center hover:border-gray-200 transition-all">
-            <p className="text-lg mb-1">🏆</p>
-            <p className="text-xs font-semibold text-[#111827]">Rankings</p>
-          </Link>
-          <Link to="/guild" className="border border-gray-100 rounded-xl p-4 text-center hover:border-gray-200 transition-all">
-            <p className="text-lg mb-1">⚔️</p>
-            <p className="text-xs font-semibold text-[#111827]">Guild</p>
-          </Link>
-        </div>
-
         {/* Security */}
-        <div className="border border-gray-100 rounded-xl p-5 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-semibold">Two-Factor Auth</p>
-            <p className="text-xs text-gray-400 mt-0.5">
-              {user?.isTwoFactorEnabled ? "Enabled — your account is secured" : "Not enabled"}
+        <div className="bg-[#181827] border border-[#302E46] rounded-xl p-6 flex flex-col sm:flex-row items-center justify-between dash-anim gap-4">
+          <div className="text-center sm:text-left">
+            <p className="text-sm font-bold font-[Orbitron] tracking-widest text-white uppercase">Two-Factor Auth</p>
+            <p className="text-xs text-[#A9A8B8] mt-1 font-semibold">
+              {user?.isTwoFactorEnabled ? "SYSTEM SECURED WITH 2FA" : "ACCOUNT AT RISK - ENABLE 2FA"}
             </p>
           </div>
           {user?.isTwoFactorEnabled ? (
-            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">ON</span>
+            <span className="text-[10px] font-black text-[#13121B] bg-[#B7FF2A] px-4 py-1.5 rounded uppercase tracking-widest outline outline-[1px] outline-offset-2 outline-[#B7FF2A]">ACTIVE</span>
           ) : (
-            <Link to="/setup-2fa" className="text-xs font-bold text-violet-600 hover:text-violet-700 transition-colors">
-              Enable →
+            <Link to="/setup-2fa" className="text-xs font-bold text-[#00FFFF] hover:text-white transition-colors border-b border-[#00FFFF] hover:border-white pb-1 tracking-widest uppercase">
+              ENABLE NOW →
             </Link>
           )}
         </div>
