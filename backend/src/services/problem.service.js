@@ -34,8 +34,9 @@ export const getProblemWithAllTestCases = async (problemId) => {
 };
 
 /**
- * Assign 3 random problems for a 1v1 match (one per question slot).
- * Picks randomly from all available problems — no stage range filtering.
+ * Assign 3 random problems for a match (one per question slot).
+ * For Blitz modes (1v1, 3v3), only Easy problems are selected so the
+ * Piston execution engine can evaluate them reliably.
  * Persists the assignment so both players always see the same questions.
  */
 export const assignMatchProblems = async (matchId) => {
@@ -47,9 +48,15 @@ export const assignMatchProblems = async (matchId) => {
     return match;
   }
 
-  const allProblems = await Problem.find().select("_id").lean();
+  // For Blitz modes, only use Easy problems to keep things fair & fast
+  const BLITZ_MODES = ["BLITZ_1V1", "BLITZ_3V3"];
+  const filter = BLITZ_MODES.includes(match.gameMode)
+    ? { difficulty: "Easy" }
+    : {};
+
+  const allProblems = await Problem.find(filter).select("_id").lean();
   if (allProblems.length < 3) {
-    throw new ApiError(500, "Not enough problems in the database (need at least 3)");
+    throw new ApiError(500, `Not enough ${filter.difficulty || ''} problems in the database (need at least 3, found ${allProblems.length})`);
   }
 
   // Shuffle and pick 3

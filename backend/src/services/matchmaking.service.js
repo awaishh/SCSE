@@ -40,9 +40,17 @@ export const joinQueue = async (userId, socketId, gameMode, io) => {
   queue.push({ userId, socketId });
   console.log(`[Matchmaking] User ${userId} joined queue for ${gameMode}. Queue length: ${queue.length}`);
 
-  // Check if we have enough players for 1v1
-  // Expand logic here later if game modes require more players (e.g. 3v3 needs 6 players)
-  const requiredPlayers = gameMode === "BLITZ_1V1" ? 2 : 2; // Defaulting to 2 for now
+  // Required players per game mode
+  const REQUIRED_PLAYERS = {
+    BLITZ_1V1: 2,
+    TEAM_DUEL_2V2: 4,
+    TEAM_DUEL_3V3: 6,
+    BLITZ_3V3: 6,
+    BATTLE_ROYALE: 2,
+    KNOCKOUT: 2,
+    ICPC_STYLE: 6,
+  };
+  const requiredPlayers = REQUIRED_PLAYERS[gameMode] || 2;
 
   if (queue.length >= requiredPlayers) {
     // Pop required number of players from the front of the queue
@@ -95,6 +103,16 @@ const formMatch = async (players, gameMode, io) => {
   // 2. Joining Players join the room
   for (const p of joiningPlayers) {
     await roomService.joinRoom(p.userId, room.roomCode);
+  }
+
+  // 3. Auto-assign teams for team modes
+  const TEAM_MODES = ["TEAM_DUEL_2V2", "TEAM_DUEL_3V3", "ICPC_STYLE"];
+  if (TEAM_MODES.includes(gameMode)) {
+    const half = Math.floor(players.length / 2);
+    for (let i = 0; i < players.length; i++) {
+      const teamId = i < half ? "A" : "B";
+      await roomService.setTeamAssignment(room._id, players[i].userId, teamId);
+    }
   }
 
   // Both should be in the socket room channel technically, we'll make them join later

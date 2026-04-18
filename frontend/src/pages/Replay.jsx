@@ -135,7 +135,7 @@ const Replay = () => {
 
   const verdictStyle = (v) => {
     if (v === "Accepted") return "bg-[rgba(183,255,42,0.1)] text-[#B7FF2A] border-[rgba(183,255,42,0.2)]";
-    return "bg-red-50 text-red-500 border-red-100";
+    return "bg-[rgba(239,68,68,0.1)] text-red-400 border-[rgba(239,68,68,0.2)]";
   };
 
   return (
@@ -143,8 +143,8 @@ const Replay = () => {
       {/* Nav */}
       <nav className="border-b border-[#302E46] px-8 py-4 flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <span className="font-bold">Battle</span>
-          <span className="font-bold text-[#B7FF2A]">Arena</span>
+          <span className="font-['Orbitron'] font-bold text-white">KRYPTCODE</span>
+          <span className="font-['Orbitron'] font-bold text-[#B7FF2A]">ARENA</span>
           <span className="mx-2 text-gray-200">|</span>
           <span className="text-sm text-[#A9A8B8]">Match Replay</span>
         </div>
@@ -168,8 +168,15 @@ const Replay = () => {
             {replay.finalScoreboard.map((p, i) => (
               <div key={i} className={`flex items-center justify-between px-5 py-4 ${i > 0 ? "border-t border-[#302E46]" : ""}`}>
                 <div className="flex items-center gap-3">
-                  <span className="text-lg">{i === 0 ? "🥇" : "🥈"}</span>
-                  <p className="text-sm font-bold">{p.userId?.name || `Player ${i + 1}`}</p>
+                  <span className="text-lg">{i === 0 ? "🥇" : i === 1 ? "🥈" : "🥉"}</span>
+                  <div>
+                    <p className="text-sm font-bold">{p.userId?.name || `Player ${i + 1}`}</p>
+                    {p.teamId && (
+                      <span className={`text-[10px] font-bold ${p.teamId === "A" ? "text-[#B7FF2A]" : "text-[#38BDF8]"}`}>
+                        Team {p.teamId}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-4 text-xs text-[#A9A8B8]">
                   <span>Q{(p.currentStage || 0) + 1} reached</span>
@@ -191,14 +198,14 @@ const Replay = () => {
               <div key={player.name} className="border border-[#302E46] rounded-xl overflow-hidden shadow-sm">
                 <div className="px-5 py-4 bg-[#1C1A2A] border-b border-[#302E46]">
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-xs font-bold text-violet-700">
+                    <div className="w-7 h-7 rounded-full bg-[#302E46] flex items-center justify-center text-xs font-bold text-[#A9A8B8]">
                       {player.name[0]?.toUpperCase()}
                     </div>
                     <p className="text-sm font-bold text-white">{player.name}</p>
                   </div>
                 </div>
 
-                <div className="divide-y divide-gray-100">
+                <div className="divide-y divide-[#302E46]">
                   {player.subs.map((sub, i) => (
                     <div key={i} className="flex flex-col group hover:bg-[#1C1A2A] transition-colors">
                       <div className="w-full flex items-center justify-between px-5 py-3.5 text-left">
@@ -273,7 +280,7 @@ const Replay = () => {
             {playing && (
               <div className="h-1 bg-[#1C1A2A] w-full overflow-hidden">
                 <div 
-                  className="h-full bg-[rgba(183,255,42,0.1)]0 transition-all duration-500"
+                  className="h-full bg-[#B7FF2A] transition-all duration-500"
                   style={{ width: `${((playing.index + 1) / selected.history.length) * 100}%` }}
                 />
               </div>
@@ -285,7 +292,7 @@ const Replay = () => {
                 height="450px"
                 language={selected.language === "cpp" ? "cpp" : selected.language}
                 value={playing ? selected.history[playing.index]?.sourceCode : selected.sourceCode}
-                theme="light"
+                theme="vs-dark"
                 options={{
                   readOnly: true,
                   minimap: { enabled: false },

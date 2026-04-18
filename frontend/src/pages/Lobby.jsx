@@ -1,21 +1,32 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useRoom } from "../context/RoomContext";
 import { useSocket } from "../context/SocketContext";
 import { useAuth } from "../context/AuthContext";
 import { Search, Loader2, Code2, Users, Lock, ChevronRight } from "lucide-react";
 import toast from "react-hot-toast";
 
+const MODES = {
+  BLITZ_1V1:      { label: "BLITZ 1V1",   sub: "Solo · 2 Players · 15 min", icon: "⚔️", isTeam: false },
+  TEAM_DUEL_2V2:  { label: "TEAM 2V2",    sub: "Teams · 4 Players · 30 min", icon: "🤝", isTeam: true },
+  TEAM_DUEL_3V3:  { label: "TEAM 3V3",    sub: "Teams · 6 Players · 30 min", icon: "🏟️", isTeam: true },
+};
+
 const Lobby = () => {
   const { createRoom, joinRoom, loading, room } = useRoom();
   const { socket, connected } = useSocket();
   const { user } = useAuth();
   const navigate = useNavigate();
-  
+  const [searchParams] = useSearchParams();
+
+  const initialMode = searchParams.get("mode") || "BLITZ_1V1";
+  const [gameMode, setGameMode] = useState(MODES[initialMode] ? initialMode : "BLITZ_1V1");
   const [tab, setTab] = useState("public"); // 'public', 'create', 'join'
   const [isPrivate, setIsPrivate] = useState(false);
   const [joinCode, setJoinCode] = useState("");
   const [searching, setSearching] = useState(false);
+
+  const mode = MODES[gameMode];
 
   // Auto-redirect if in a private room
   useEffect(() => {
@@ -27,7 +38,7 @@ const Lobby = () => {
   // Matchmaking Socket Listeners
   useEffect(() => {
     if (!socket) return;
-    
+
     const handleSearching = () => setSearching(true);
     const handleCancelled = () => setSearching(false);
     const handleFound = ({ matchId }) => {
@@ -56,15 +67,15 @@ const Lobby = () => {
   const handleSearchToggle = () => {
     if (!connected) return toast.error("Connecting to server...");
     if (searching) {
-      socket.emit("matchmaking:cancel", { gameMode: "BLITZ_1V1" });
+      socket.emit("matchmaking:cancel", { gameMode });
     } else {
-      socket.emit("matchmaking:search", { gameMode: "BLITZ_1V1" });
+      socket.emit("matchmaking:search", { gameMode });
     }
   };
 
   const handleCreate = () => {
     if (!connected) return toast.error("Connecting to server...");
-    createRoom("BLITZ_1V1", isPrivate);
+    createRoom(gameMode, isPrivate);
   };
 
   const handleJoin = () => {
@@ -76,7 +87,7 @@ const Lobby = () => {
 
   return (
     <div className="min-h-screen bg-[#13121B] text-white font-['Satoshi'] relative overflow-hidden flex flex-col">
-      {/* Background Typography Effect (From Landing Page) */}
+      {/* Background Typography Effect */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] flex flex-col items-center opacity-[0.03] pointer-events-none select-none overflow-hidden z-0 whitespace-nowrap leading-[0.8]">
         <span className="text-[14vw] font-black tracking-[-0.04em]">KRYPTCODE</span>
         <span className="text-[14vw] font-black tracking-[-0.04em] ml-[10vw]">BATTLE</span>
@@ -103,22 +114,53 @@ const Lobby = () => {
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6">
         {/* Main Interaction Panel */}
         <div className="w-full max-w-4xl bg-[#1C1A2A]/60 backdrop-blur-xl border border-[#302E46] p-2 rounded-3xl shadow-2xl flex flex-col items-center">
-          
+
+          {/* Game Mode Selector */}
+          <div className="w-full px-4 pt-4 pb-2">
+            <p className="text-[10px] font-bold text-[#A9A8B8] uppercase tracking-widest mb-3">Game Mode</p>
+            <div className="flex gap-2">
+              {Object.entries(MODES).map(([key, m]) => (
+                <button
+                  key={key}
+                  onClick={() => {
+                    setGameMode(key);
+                    if (searching) {
+                      socket.emit("matchmaking:cancel", { gameMode });
+                      setSearching(false);
+                    }
+                  }}
+                  className={`flex-1 py-3 px-3 rounded-xl border-2 text-center transition-all ${
+                    gameMode === key
+                      ? "border-[#B7FF2A] bg-[#B7FF2A]/10"
+                      : "border-[#302E46] hover:border-[#A9A8B8]/30"
+                  }`}
+                >
+                  <p className="text-lg mb-1">{m.icon}</p>
+                  <p className={`text-xs font-bold tracking-wider ${gameMode === key ? "text-[#B7FF2A]" : "text-white"}`}>{m.label}</p>
+                  <p className="text-[9px] text-[#A9A8B8] mt-0.5">{m.sub}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="w-full flex justify-between items-center px-4 py-3">
-            <h1 className="text-xl font-bold tracking-widest uppercase">Select Mode</h1>
-            
+            <h1 className="text-xl font-bold tracking-widest uppercase">{mode.label}</h1>
+
             {/* Tabs */}
             <div className="flex bg-[#13121B] p-1 rounded-xl">
               {[
                 { id: "public", label: "Auto Match" },
-                { id: "create", label: "Create Room" }, 
+                { id: "create", label: "Create Room" },
                 { id: "join", label: "Join Code" }
               ].map((t) => (
                 <button
                   key={t.id}
                   onClick={() => {
                     setTab(t.id);
-                    if (searching) socket.emit("matchmaking:cancel", { gameMode: "BLITZ_1V1" }); // Stop searching if switching tabs
+                    if (searching) {
+                      socket.emit("matchmaking:cancel", { gameMode });
+                      setSearching(false);
+                    }
                   }}
                   className={`px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
                     tab === t.id ? "bg-[#302E46] text-white" : "text-[#A9A8B8] hover:text-white"
@@ -131,15 +173,17 @@ const Lobby = () => {
           </div>
 
           <div className="w-full p-8 flex flex-col items-center border-t border-[#302E46]">
-            
+
             {tab === "public" && (
               <div className="w-full flex flex-col items-center py-10">
                 <div className="mb-12 text-center">
                   <h2 className="text-4xl md:text-5xl font-black mb-4">
-                    BLITZ <span className="text-[#B7FF2A]">1V1</span>
+                    {mode.label.split(" ")[0]} <span className="text-[#B7FF2A]">{mode.label.split(" ").slice(1).join(" ")}</span>
                   </h2>
                   <p className="text-[#A9A8B8] max-w-md mx-auto text-sm leading-relaxed">
-                    Instantly pair with another developer. First to solve 3 algorithmic challenges wins. No room codes, pure skill.
+                    {mode.isTeam
+                      ? `Queue up for a ${mode.label} match. You'll be auto-matched with teammates and opponents. Teams are assigned in the room.`
+                      : "Instantly pair with another developer. First to solve 3 algorithmic challenges wins. No room codes, pure skill."}
                   </p>
                 </div>
 
@@ -147,19 +191,17 @@ const Lobby = () => {
                   onClick={handleSearchToggle}
                   disabled={!connected}
                   className={`relative group w-64 h-64 rounded-full flex flex-col items-center justify-center transition-all duration-500 overflow-hidden ${
-                    searching 
-                      ? "bg-transparent border-2 border-[#B7FF2A] shadow-[0_0_60px_rgba(183,255,42,0.2)]" 
+                    searching
+                      ? "bg-transparent border-2 border-[#B7FF2A] shadow-[0_0_60px_rgba(183,255,42,0.2)]"
                       : "bg-[#B7FF2A] hover:scale-105 shadow-[0_0_40px_rgba(183,255,42,0.3)] hover:shadow-[0_0_80px_rgba(183,255,42,0.5)]"
                   }`}
                 >
-                  {/* Radar effect when searching */}
                   {searching && (
                     <div className="absolute inset-0 z-0">
                       <div className="absolute inset-0 rounded-full border border-[#B7FF2A]/50 animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite]" />
                       <div className="absolute inset-0 rounded-full border border-[#B7FF2A]/30 animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite_0.5s]" />
                     </div>
                   )}
-
                   <div className="relative z-10 flex flex-col items-center">
                     {searching ? (
                       <>
@@ -185,10 +227,16 @@ const Lobby = () => {
                   <div className="w-16 h-16 bg-[#302E46] rounded-2xl flex items-center justify-center mx-auto mb-4">
                     <Users size={32} className="text-[#B7FF2A]" />
                   </div>
-                  <h2 className="text-2xl font-black text-white">HOST PRIVATE MATCH</h2>
-                  <p className="text-sm text-[#A9A8B8] mt-2">Create a room and invite a friend using a secure code.</p>
+                  <h2 className="text-2xl font-black text-white">
+                    {mode.isTeam ? `HOST ${mode.label} MATCH` : "HOST PRIVATE MATCH"}
+                  </h2>
+                  <p className="text-sm text-[#A9A8B8] mt-2">
+                    {mode.isTeam
+                      ? "Create a room and invite friends. Assign teams before starting."
+                      : "Create a room and invite a friend using a secure code."}
+                  </p>
                 </div>
-                
+
                 <div className="bg-[#13121B] p-6 rounded-2xl border border-[#302E46] mb-8">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -210,7 +258,7 @@ const Lobby = () => {
                 <button
                   onClick={handleCreate}
                   disabled={loading || !connected}
-                  className="w-full bg-white hover:bg-gray-100 disabled:opacity-50 text-[#13121B] py-4 rounded-xl font-black tracking-widest text-sm flex items-center justify-center gap-2 transition-all"
+                  className="w-full bg-[#B7FF2A] hover:bg-[#A6F11F] disabled:opacity-50 text-[#13121B] py-4 rounded-xl font-black tracking-widest text-sm flex items-center justify-center gap-2 transition-all"
                 >
                   {loading ? <Loader2 size={18} className="animate-spin" /> : "GENERATE ROOM"}
                 </button>
@@ -223,8 +271,8 @@ const Lobby = () => {
                   <div className="w-16 h-16 bg-[#302E46] rounded-2xl flex items-center justify-center mx-auto mb-4">
                     <Code2 size={32} className="text-[#B7FF2A]" />
                   </div>
-                  <h2 className="text-2xl font-black text-white">JOIN COMPANION</h2>
-                  <p className="text-sm text-[#A9A8B8] mt-2">Enter your friend's 6-character room code to duel.</p>
+                  <h2 className="text-2xl font-black text-white">JOIN ROOM</h2>
+                  <p className="text-sm text-[#A9A8B8] mt-2">Enter a 6-character room code to join any game mode.</p>
                 </div>
 
                 <div className="mb-8">

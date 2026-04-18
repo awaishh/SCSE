@@ -90,14 +90,44 @@ const Dashboard = () => {
           <p className="text-[#6D6A7E] text-sm mt-1">{user?.email}</p>
         </div>
 
-        {/* Play button */}
+        {/* Game Mode Cards */}
         <div className="dash-anim">
-           <Link
-             to="/lobby"
-             className="block w-full bg-[#B7FF2A] hover:bg-[#A6F11F] text-[#13121B] py-5 rounded-xl text-center text-sm font-[Orbitron] font-bold tracking-widest transition-all shadow-[0_0_20px_rgba(183,255,42,0.2)]"
-           >
-             ⚔️ ENTER BLITZ 1V1
-           </Link>
+          <p className="text-xs font-bold font-[Orbitron] text-[#A9A8B8] uppercase tracking-widest mb-4">Choose Your Battle</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Link
+              to="/lobby?mode=BLITZ_1V1"
+              className="group relative bg-[#181827] border border-[#302E46] hover:border-[#B7FF2A] rounded-xl p-6 transition-all overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-[#B7FF2A]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative">
+                <p className="text-3xl mb-3">⚔️</p>
+                <p className="text-sm font-[Orbitron] font-black text-white tracking-widest uppercase">BLITZ 1V1</p>
+                <p className="text-[10px] text-[#A9A8B8] mt-1 font-semibold">Solo · 2 Players · 15 min</p>
+              </div>
+            </Link>
+            <Link
+              to="/lobby?mode=TEAM_DUEL_2V2"
+              className="group relative bg-[#181827] border border-[#302E46] hover:border-[#B7FF2A] rounded-xl p-6 transition-all overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-[#B7FF2A]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative">
+                <p className="text-3xl mb-3">🤝</p>
+                <p className="text-sm font-[Orbitron] font-black text-white tracking-widest uppercase">TEAM 2V2</p>
+                <p className="text-[10px] text-[#A9A8B8] mt-1 font-semibold">Teams · 4 Players · 30 min</p>
+              </div>
+            </Link>
+            <Link
+              to="/lobby?mode=TEAM_DUEL_3V3"
+              className="group relative bg-[#181827] border border-[#302E46] hover:border-[#B7FF2A] rounded-xl p-6 transition-all overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-[#B7FF2A]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative">
+                <p className="text-3xl mb-3">🏟️</p>
+                <p className="text-sm font-[Orbitron] font-black text-white tracking-widest uppercase">TEAM 3V3</p>
+                <p className="text-[10px] text-[#A9A8B8] mt-1 font-semibold">Teams · 6 Players · 30 min</p>
+              </div>
+            </Link>
+          </div>
         </div>
 
         {/* Stats */}

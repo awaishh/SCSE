@@ -104,13 +104,11 @@ export const initSocket = (server) => {
     // Wrap socket.on to inject rate limiting for all game events
     const _originalOn = socket.on.bind(socket);
     socket.on = (event, handler) => {
-      // Skip rate limiting for internal socket.io, 'room:', and 'match:' events
+      // Skip rate limiting for internal socket.io events only
       const isWhitelisted = 
         event === "disconnect" || 
         event === "error" || 
-        event === "connect" ||
-        event.startsWith("room:") || 
-        event.startsWith("match:");
+        event === "connect";
 
       if (isWhitelisted) {
         return _originalOn(event, handler);
@@ -487,11 +485,13 @@ export const initSocket = (server) => {
       matchmakingService.leaveQueue(userId);
 
       // Give the user 8 seconds to reconnect (e.g. page refresh)
-      // before auto-removing them from WAITING rooms
+      // before auto-removing them from rooms and ending live matches
       const timer = setTimeout(async () => {
         disconnectTimers.delete(userId);
         try {
           const { Room } = await import("../models/room.model.js");
+
+          // 1. Handle WAITING rooms — remove player cleanly
           const waitingRooms = await Room.find({
             "players.userId": userId,
             status: "WAITING",
@@ -505,6 +505,19 @@ export const initSocket = (server) => {
             if (updated) {
               io.to(room._id.toString()).emit("room:updated", { room: updated });
             }
+          }
+
+          // 2. Handle LIVE matches — auto-end if a player disconnected
+          const { Match } = await import("../models/match.model.js");
+          const liveMatches = await Match.find({
+            players: userId,
+            status: "LIVE",
+          });
+
+          for (const match of liveMatches) {
+            console.log(`[Socket] Auto-ending match ${match._id} because user ${userId} disconnected.`);
+            const { endMatch } = await import("../services/match.service.js");
+            await endMatch(match._id.toString(), io);
           }
         } catch (e) {
           console.error("[Socket] Auto-leave on disconnect failed:", e.message);

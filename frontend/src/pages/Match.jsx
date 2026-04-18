@@ -43,6 +43,24 @@ public class Main {
         // Write your solution here
     }
 }`,
+  c: `#include <stdio.h>
+int main() {
+    // Write your solution here
+    return 0;
+}`,
+};
+
+const BLITZ_MODES = ["BLITZ_1V1", "BLITZ_3V3"];
+const TEAM_MODES = ["TEAM_DUEL_2V2", "TEAM_DUEL_3V3", "ICPC_STYLE"];
+
+const MODE_LABELS = {
+  BLITZ_1V1: "Blitz 1v1",
+  TEAM_DUEL_2V2: "Team 2v2",
+  TEAM_DUEL_3V3: "Team 3v3",
+  BLITZ_3V3: "Blitz 3v3",
+  BATTLE_ROYALE: "Battle Royale",
+  KNOCKOUT: "Knockout",
+  ICPC_STYLE: "ICPC Style",
 };
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -111,8 +129,9 @@ const Match = () => {
 
     socket.on("match:state-changed", ({ status, startTime }) => {
       if (status === "LIVE" && startTime) {
-        // 15 min for blitz
-        const end = new Date(new Date(startTime).getTime() + 15 * 60 * 1000);
+        const gameMode = matchData?.gameMode || "BLITZ_1V1";
+        const durationMs = BLITZ_MODES.includes(gameMode) ? 15 * 60 * 1000 : 30 * 60 * 1000;
+        const end = new Date(new Date(startTime).getTime() + durationMs);
         setTimeLeft(Math.max(0, Math.floor((end - Date.now()) / 1000)));
       }
     });
@@ -161,7 +180,7 @@ const Match = () => {
     });
 
     socket.on("match:forced-advancement", ({ stage }) => {
-      toast.info(`Time's up! Everyone moved to question ${stage + 1}`);
+      toast(`Time's up! Everyone moved to question ${stage + 1}`, { icon: "⏱️" });
       setSubmitting(false); // clear evaluating state if it was stuck
     });
 
@@ -178,6 +197,7 @@ const Match = () => {
       socket.off("match:next-question");
       socket.off("submission:result");
       socket.off("match:finished");
+      socket.off("match:forced-advancement");
       socket.off("submit:error");
       socket.emit("match:leave", { matchId });
     };
@@ -224,51 +244,104 @@ const Match = () => {
   const diff = diffColor(problem?.difficultyRating);
   const myState = scoreboard.find((p) => (p.userId?._id || p.userId) === user?._id);
 
+  const isTeamMode = TEAM_MODES.includes(matchData?.gameMode);
+
   // ── Finished overlay ──
   if (finished) {
     const iWon = finished.winnerIds?.some(
       (w) => w?.toString?.() === user?._id?.toString?.()
     );
+
+    // Group scoreboard by team for team modes
+    const teamA = (finished.finalScoreboard || []).filter(p => p.teamId === "A");
+    const teamB = (finished.finalScoreboard || []).filter(p => p.teamId === "B");
+    const teamAScore = teamA.reduce((s, p) => s + (p.score || 0), 0);
+    const teamBScore = teamB.reduce((s, p) => s + (p.score || 0), 0);
+
     return (
-      <div className="min-h-screen bg-[#13121B] font-['Satoshi'] flex items-center justify-center px-4">
-        <div className="w-full max-w-md text-center">
+      <div className="min-h-screen bg-[#13121B] font-['Satoshi'] flex items-center justify-center px-4" style={{ fontFamily: "'Satoshi', 'Inter', sans-serif" }}>
+        <div className="w-full max-w-lg text-center">
           <div className="text-6xl mb-4">{iWon ? "🏆" : "💀"}</div>
           <h1 className="text-3xl font-bold text-white tracking-tight mb-2">
             {iWon ? "You Won!" : "You Lost"}
           </h1>
-          <p className="text-[#A9A8B8] text-sm mb-8">Match complete</p>
+          <p className="text-[#A9A8B8] text-sm mb-8">{MODE_LABELS[matchData?.gameMode] || "Match"} complete</p>
 
-          {/* Scoreboard */}
-          <div className="border border-[#302E46] rounded-xl overflow-hidden mb-6">
-            {(finished.finalScoreboard || []).map((p, i) => {
-              const isWinner = finished.winnerIds?.some(
-                (w) => w?.toString?.() === (p.userId?._id || p.userId)?.toString?.()
-              );
-              const isMe = (p.userId?._id || p.userId)?.toString?.() === user?._id;
-              return (
-                <div
-                  key={i}
-                  className={`flex items-center justify-between px-5 py-4 ${
-                    i > 0 ? "border-t border-[#302E46]" : ""
-                  } ${isMe ? "bg-violet-50" : "bg-[#181827]"}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg">{isWinner ? "🥇" : "🥈"}</span>
-                    <div>
-                      <p className="text-sm font-bold text-white">
-                        {p.userId?.name || `Player ${i + 1}`}
-                        {isMe && <span className="text-violet-500 ml-1">(you)</span>}
-                      </p>
-                      <p className="text-xs text-[#A9A8B8]">
-                        Q{(p.currentStage || 0) + 1} · {p.wrongAttempts || 0} wrong
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-sm font-black text-[#B7FF2A]">{p.score || 0} pts</p>
+          {/* Team scoreboard */}
+          {isTeamMode && teamA.length > 0 ? (
+            <div className="space-y-4 mb-6">
+              {/* Team A */}
+              <div className={`border rounded-xl overflow-hidden ${teamAScore >= teamBScore ? "border-[#B7FF2A]/40" : "border-[#302E46]"}`}>
+                <div className="px-4 py-2 bg-[rgba(183,255,42,0.08)] flex justify-between items-center">
+                  <span className="text-xs font-bold text-[#B7FF2A] uppercase tracking-wide">Team A</span>
+                  <span className="text-sm font-black text-[#B7FF2A]">{teamAScore} pts</span>
                 </div>
-              );
-            })}
-          </div>
+                {teamA.map((p, i) => {
+                  const isMe = (p.userId?._id || p.userId)?.toString?.() === user?._id;
+                  return (
+                    <div key={i} className={`flex items-center justify-between px-5 py-3 ${i > 0 ? "border-t border-[#302E46]" : ""} ${isMe ? "bg-[#1C1A2A]" : "bg-[#181827]"}`}>
+                      <p className="text-sm font-bold text-white">
+                        {p.userId?.name || `Player ${i+1}`}
+                        {isMe && <span className="text-[#B7FF2A] ml-1">(you)</span>}
+                      </p>
+                      <p className="text-xs text-[#A9A8B8]">Q{(p.currentStage||0)+1} · {p.score||0}pts</p>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Team B */}
+              <div className={`border rounded-xl overflow-hidden ${teamBScore > teamAScore ? "border-[#38BDF8]/40" : "border-[#302E46]"}`}>
+                <div className="px-4 py-2 bg-[rgba(56,189,248,0.08)] flex justify-between items-center">
+                  <span className="text-xs font-bold text-[#38BDF8] uppercase tracking-wide">Team B</span>
+                  <span className="text-sm font-black text-[#38BDF8]">{teamBScore} pts</span>
+                </div>
+                {teamB.map((p, i) => {
+                  const isMe = (p.userId?._id || p.userId)?.toString?.() === user?._id;
+                  return (
+                    <div key={i} className={`flex items-center justify-between px-5 py-3 ${i > 0 ? "border-t border-[#302E46]" : ""} ${isMe ? "bg-[#1C1A2A]" : "bg-[#181827]"}`}>
+                      <p className="text-sm font-bold text-white">
+                        {p.userId?.name || `Player ${i+1}`}
+                        {isMe && <span className="text-[#38BDF8] ml-1">(you)</span>}
+                      </p>
+                      <p className="text-xs text-[#A9A8B8]">Q{(p.currentStage||0)+1} · {p.score||0}pts</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            /* Solo scoreboard */
+            <div className="border border-[#302E46] rounded-xl overflow-hidden mb-6">
+              {(finished.finalScoreboard || []).map((p, i) => {
+                const isWinner = finished.winnerIds?.some(
+                  (w) => w?.toString?.() === (p.userId?._id || p.userId)?.toString?.()
+                );
+                const isMe = (p.userId?._id || p.userId)?.toString?.() === user?._id;
+                return (
+                  <div
+                    key={i}
+                    className={`flex items-center justify-between px-5 py-4 ${
+                      i > 0 ? "border-t border-[#302E46]" : ""
+                    } ${isMe ? "bg-[#1C1A2A]" : "bg-[#181827]"}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">{isWinner ? "🥇" : "🥈"}</span>
+                      <div>
+                        <p className="text-sm font-bold text-white">
+                          {p.userId?.name || `Player ${i + 1}`}
+                          {isMe && <span className="text-[#B7FF2A] ml-1">(you)</span>}
+                        </p>
+                        <p className="text-xs text-[#A9A8B8]">
+                          Q{(p.currentStage || 0) + 1} · {p.wrongAttempts || 0} wrong
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-sm font-black text-[#B7FF2A]">{p.score || 0} pts</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <div className="flex gap-3">
             <button
@@ -290,15 +363,15 @@ const Match = () => {
   }
 
   return (
-    <div className="h-screen bg-[#13121B] font-['Satoshi'] flex flex-col overflow-hidden text-white">
+    <div className="h-screen bg-[#13121B] font-['Satoshi'] flex flex-col overflow-hidden text-white" style={{ fontFamily: "'Satoshi', 'Inter', sans-serif" }}>
 
       {/* ── Top bar ── */}
       <div className="h-14 border-b border-[#302E46] flex items-center justify-between px-6 shrink-0">
         <div className="flex items-center gap-3">
-          <span className="font-bold text-white">Battle</span>
-          <span className="font-bold text-[#B7FF2A]">Arena</span>
+          <span className="font-['Orbitron'] font-bold text-white">KRYPTCODE</span>
+          <span className="font-['Orbitron'] font-bold text-[#B7FF2A]">ARENA</span>
           <span className="text-gray-200 mx-1">|</span>
-          <span className="text-xs font-semibold text-[#A9A8B8]">Blitz 1v1</span>
+          <span className="text-xs font-semibold text-[#A9A8B8]">{MODE_LABELS[matchData?.gameMode] || "Match"}</span>
           {/* Question progress */}
           <div className="flex items-center gap-1 ml-2">
             {[0, 1, 2].map((i) => (
@@ -306,7 +379,7 @@ const Match = () => {
                 key={i}
                 className={`w-6 h-1.5 rounded-full transition-all ${
                   i < questionIndex
-                    ? "bg-[rgba(183,255,42,0.1)]0"
+                    ? "bg-[#B7FF2A]"
                     : i === questionIndex
                     ? "bg-[#B7FF2A]"
                     : "bg-gray-200"
@@ -323,7 +396,7 @@ const Match = () => {
           <div className="flex flex-col items-center gap-1">
             <span className="text-[10px] uppercase font-bold text-[#A9A8B8]">Match ends in</span>
             <div className={`font-mono font-bold text-lg px-4 py-1.5 rounded-xl ${
-              timeLeft < 60 ? "bg-red-50 text-red-600 animate-pulse" : "bg-[#1C1A2A] text-white"
+              timeLeft < 60 ? "bg-red-500/10 text-red-400 animate-pulse" : "bg-[#1C1A2A] text-white"
             }`}>
               {fmt(timeLeft)}
             </div>
@@ -333,22 +406,44 @@ const Match = () => {
           {timeLeft > 0 && questionIndex < 2 && (
             <div className="flex flex-col items-center gap-1">
               <span className="text-[10px] uppercase font-bold text-[#A9A8B8]">Round {questionIndex + 1} Timer</span>
-              <div className="bg-violet-50 text-[#B7FF2A] font-mono font-bold text-sm px-3 py-1 rounded-lg border border-violet-100">
+              <div className="bg-[#1C1A2A] text-[#B7FF2A] font-mono font-bold text-sm px-3 py-1 rounded-lg border border-[#302E46]">
                 Next Q in: {fmt(timeLeft % 300 || 300)}
               </div>
             </div>
           )}
-          {/* Opponent status */}
-          {scoreboard.filter((p) => (p.userId?._id || p.userId) !== user?._id).map((p, i) => (
-            <div key={i} className="flex items-center gap-2 text-xs text-[#A9A8B8]">
-              <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-[10px] font-bold">
-                {(p.name || p.userId?.name || "?")[0]?.toUpperCase()}
+          {/* Opponents / teammates in top bar */}
+          {isTeamMode ? (
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[rgba(183,255,42,0.06)]">
+                <span className="text-[10px] font-bold text-[#B7FF2A]">A</span>
+                {scoreboard.filter(p => p.teamId === "A").map((p, i) => (
+                  <span key={i} className="text-xs text-[#A9A8B8] ml-1">
+                    {(p.name || p.userId?.name || "?")[0]?.toUpperCase()}{p.score||0}
+                  </span>
+                ))}
               </div>
-              <span>Q{(p.currentStage || 0) + 1}</span>
-              <span className="text-gray-300">·</span>
-              <span className="font-semibold text-white">{p.score || 0}pts</span>
+              <span className="text-[#A9A8B8] text-xs">vs</span>
+              <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[rgba(56,189,248,0.06)]">
+                <span className="text-[10px] font-bold text-[#38BDF8]">B</span>
+                {scoreboard.filter(p => p.teamId === "B").map((p, i) => (
+                  <span key={i} className="text-xs text-[#A9A8B8] ml-1">
+                    {(p.name || p.userId?.name || "?")[0]?.toUpperCase()}{p.score||0}
+                  </span>
+                ))}
+              </div>
             </div>
-          ))}
+          ) : (
+            scoreboard.filter((p) => (p.userId?._id || p.userId) !== user?._id).map((p, i) => (
+              <div key={i} className="flex items-center gap-2 text-xs text-[#A9A8B8]">
+                <div className="w-6 h-6 rounded-full bg-[#302E46] flex items-center justify-center text-[10px] font-bold">
+                  {(p.name || p.userId?.name || "?")[0]?.toUpperCase()}
+                </div>
+                <span>Q{(p.currentStage || 0) + 1}</span>
+                <span className="text-gray-300">·</span>
+                <span className="font-semibold text-white">{p.score || 0}pts</span>
+              </div>
+            ))
+          )}
           <button
             onClick={() => navigate("/lobby")}
             className="text-xs text-[#A9A8B8] hover:text-red-500 transition-colors"
@@ -444,12 +539,13 @@ const Match = () => {
               <option value="python">Python</option>
               <option value="cpp">C++</option>
               <option value="java">Java</option>
+              <option value="c">C</option>
             </select>
 
             <button
               onClick={handleSubmit}
               disabled={submitting || !problem}
-              className="flex items-center gap-2 bg-[#B7FF2A] hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-1.5 rounded-lg text-xs font-bold transition-all"
+              className="flex items-center gap-2 bg-[#B7FF2A] hover:bg-[#A6F11F] disabled:opacity-50 disabled:cursor-not-allowed text-[#13121B] px-5 py-1.5 rounded-lg text-xs font-bold transition-all"
             >
               {submitting ? (
                 <>
@@ -468,7 +564,7 @@ const Match = () => {
               value={code}
               onChange={(v) => setCode(v || "")}
               onMount={(editor) => { editorRef.current = editor; }}
-              theme="light"
+              theme="vs-dark"
               options={{
                 minimap: { enabled: false },
                 fontSize: 13,
@@ -483,11 +579,11 @@ const Match = () => {
 
           {/* Result panel */}
           {result && (
-            <div className={`border-t shrink-0 px-5 py-4 ${result.passed ? "bg-[rgba(183,255,42,0.1)] border-[rgba(183,255,42,0.2)]" : "bg-red-50 border-red-100"}`}>
+            <div className={`border-t shrink-0 px-5 py-4 ${result.passed ? "bg-[rgba(183,255,42,0.08)] border-[rgba(183,255,42,0.2)]" : "bg-[rgba(239,68,68,0.08)] border-[rgba(239,68,68,0.2)]"}`}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">{result.passed ? "✅" : "❌"}</span>
-                  <span className={`text-sm font-bold ${result.passed ? "text-emerald-700" : "text-red-700"}`}>
+                  <span className={`text-sm font-bold ${result.passed ? "text-[#B7FF2A]" : "text-red-400"}`}>
                     {result.passed ? "Accepted" : "Wrong Answer"}
                   </span>
                   {result.runtime && (
@@ -499,7 +595,7 @@ const Match = () => {
                 </button>
               </div>
               {result.error && (
-                <pre className="text-xs text-red-600 bg-red-100 rounded p-2 overflow-x-auto whitespace-pre-wrap">
+                <pre className="text-xs text-red-400 bg-[rgba(239,68,68,0.1)] rounded p-2 overflow-x-auto whitespace-pre-wrap">
                   {result.error}
                 </pre>
               )}
@@ -507,7 +603,7 @@ const Match = () => {
                 <div className="text-xs font-mono space-y-1 mt-2">
                   <div><span className="text-[#A9A8B8]">Input: </span>{result.failedTestCase.input}</div>
                   <div><span className="text-[#A9A8B8]">Expected: </span><span className="text-[#B7FF2A]">{result.failedTestCase.expected}</span></div>
-                  <div><span className="text-[#A9A8B8]">Got: </span><span className="text-red-600">{result.failedTestCase.got || "(empty)"}</span></div>
+                  <div><span className="text-[#A9A8B8]">Got: </span><span className="text-red-400">{result.failedTestCase.got || "(empty)"}</span></div>
                 </div>
               )}
             </div>

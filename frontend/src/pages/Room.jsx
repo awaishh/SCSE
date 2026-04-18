@@ -14,7 +14,7 @@ const generateQR = async (text) => {
     return await QRCode.toDataURL(text, {
       width: 180,
       margin: 2,
-      color: { dark: "#111827", light: "#ffffff" },
+      color: { dark: "#B7FF2A", light: "#13121B" },
     });
   } catch {
     return null;
@@ -35,11 +35,9 @@ const QRCard = ({ title, subtitle, url, color = "violet" }) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const borderColor = color === "violet" ? "border-violet-200" : "border-emerald-200";
-  const badgeBg = color === "violet" ? "bg-violet-50 text-violet-700" : "bg-[rgba(183,255,42,0.1)] text-emerald-700";
-  const btnColor = color === "violet"
-    ? "bg-[#B7FF2A] hover:bg-violet-700 shadow-violet-600/20"
-    : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20";
+  const borderColor = color === "teamA" ? "border-[#B7FF2A]/30" : color === "teamB" ? "border-[#38BDF8]/30" : "border-[#302E46]";
+  const badgeBg = color === "teamA" ? "bg-[rgba(183,255,42,0.1)] text-[#B7FF2A]" : color === "teamB" ? "bg-[rgba(56,189,248,0.1)] text-[#38BDF8]" : "bg-[#1C1A2A] text-[#A9A8B8]";
+  const btnColor = "bg-[#B7FF2A] hover:bg-[#A6F11F] shadow-[#B7FF2A]/10";
 
   return (
     <div className={`border-2 ${borderColor} rounded-xl p-5 flex flex-col items-center gap-4`}>
@@ -54,7 +52,7 @@ const QRCard = ({ title, subtitle, url, color = "violet" }) => {
       )}
       <button
         onClick={copy}
-        className={`w-full text-white text-xs font-semibold py-2 rounded-lg transition-all shadow-lg ${btnColor}`}
+        className={`w-full text-[#13121B] text-xs font-semibold py-2 rounded-lg transition-all shadow-lg ${btnColor}`}
       >
         {copied ? "Copied!" : "Copy Link"}
       </button>
@@ -105,7 +103,7 @@ const Room = () => {
   if (loading && !room) {
     return (
       <div className="min-h-screen bg-[#13121B] font-['Satoshi'] flex items-center justify-center">
-        <span className="w-6 h-6 border-2 border-violet-600 border-t-transparent rounded-full animate-spin" />
+        <span className="w-6 h-6 border-2 border-[#B7FF2A] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -143,8 +141,8 @@ const Room = () => {
       {/* Nav */}
       <nav className="border-b border-[#302E46] px-8 py-4 flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <span className="font-bold">Battle</span>
-          <span className="font-bold text-[#B7FF2A]">Arena</span>
+          <span className="font-['Orbitron'] font-bold">KRYPTCODE</span>
+          <span className="font-['Orbitron'] font-bold text-[#B7FF2A]">ARENA</span>
           <span className="mx-2 text-gray-200">|</span>
           <span className="text-sm text-[#A9A8B8]">Room</span>
           <span className="ml-2 font-mono font-bold text-sm bg-[#1C1A2A] px-2 py-0.5 rounded">{room.roomCode}</span>
@@ -168,7 +166,7 @@ const Room = () => {
             </p>
           </div>
           <span className={`text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full ${
-            room.status === "WAITING" ? "bg-amber-50 text-amber-600" : "bg-green-50 text-green-600"
+            room.status === "WAITING" ? "bg-[rgba(245,158,11,0.1)] text-amber-400" : "bg-[rgba(183,255,42,0.1)] text-[#B7FF2A]"
           }`}>
             {room.status}
           </span>
@@ -184,19 +182,19 @@ const Room = () => {
               const isMe = pid === user?._id;
               const isHostPlayer = room.hostId === pid || room.hostId?._id === pid;
               return (
-                <div key={pid} className={`flex items-center gap-3 px-4 py-3 rounded-lg border ${isMe ? "border-violet-200 bg-violet-50" : "border-[#302E46] bg-[#1C1A2A]"}`}>
-                  <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-[#A9A8B8]">
+                <div key={pid} className={`flex items-center gap-3 px-4 py-3 rounded-lg border ${isMe ? "border-[#B7FF2A]/30 bg-[rgba(183,255,42,0.05)]" : "border-[#302E46] bg-[#1C1A2A]"}`}>
+                  <div className="w-8 h-8 rounded-full bg-[#302E46] flex items-center justify-center text-xs font-bold text-[#A9A8B8]">
                     {pname[0]?.toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate">{pname} {isMe && <span className="text-violet-500">(you)</span>}</p>
+                    <p className="text-sm font-semibold truncate">{pname} {isMe && <span className="text-[#B7FF2A]">(you)</span>}</p>
                     {isTeamMode && p.teamId && (
-                      <p className={`text-xs font-bold ${p.teamId === "A" ? "text-[#B7FF2A]" : "text-[#B7FF2A]"}`}>
+                      <p className={`text-xs font-bold ${p.teamId === "A" ? "text-[#B7FF2A]" : "text-[#38BDF8]"}`}>
                         Team {p.teamId}
                       </p>
                     )}
                   </div>
-                  {isHostPlayer && <span className="text-[10px] bg-amber-100 text-amber-600 font-bold px-1.5 py-0.5 rounded">HOST</span>}
+                  {isHostPlayer && <span className="text-[10px] bg-[rgba(245,158,11,0.15)] text-amber-400 font-bold px-1.5 py-0.5 rounded">HOST</span>}
                 </div>
               );
             })}
@@ -204,7 +202,7 @@ const Room = () => {
             {Array.from({ length: Math.max(0, (room.maxPlayers || 0) - (room.players?.length || 0)) }).map((_, i) => (
               <div key={`empty-${i}`} className="flex items-center gap-3 px-4 py-3 rounded-lg border border-dashed border-[#302E46]">
                 <div className="w-8 h-8 rounded-full bg-[#1C1A2A] border-2 border-dashed border-[#302E46]" />
-                <p className="text-sm text-gray-300">Waiting...</p>
+                <p className="text-sm text-[#A9A8B8]">Waiting...</p>
               </div>
             ))}
           </div>
@@ -218,7 +216,7 @@ const Room = () => {
               <button
                 onClick={() => setTeam("A")}
                 className={`flex-1 py-3 rounded-lg border-2 text-sm font-bold transition-all ${
-                  myTeam === "A" ? "border-violet-600 bg-violet-50 text-violet-700" : "border-[#302E46] text-[#A9A8B8] hover:border-violet-300"
+                  myTeam === "A" ? "border-[#B7FF2A] bg-[rgba(183,255,42,0.1)] text-[#B7FF2A]" : "border-[#302E46] text-[#A9A8B8] hover:border-[#B7FF2A]/50"
                 }`}
               >
                 Team A
@@ -226,7 +224,7 @@ const Room = () => {
               <button
                 onClick={() => setTeam("B")}
                 className={`flex-1 py-3 rounded-lg border-2 text-sm font-bold transition-all ${
-                  myTeam === "B" ? "border-emerald-600 bg-[rgba(183,255,42,0.1)] text-emerald-700" : "border-[#302E46] text-[#A9A8B8] hover:border-emerald-300"
+                  myTeam === "B" ? "border-[#38BDF8] bg-[rgba(56,189,248,0.1)] text-[#38BDF8]" : "border-[#302E46] text-[#A9A8B8] hover:border-[#38BDF8]/50"
                 }`}
               >
                 Team B
@@ -244,13 +242,13 @@ const Room = () => {
                 title="Join Team A"
                 subtitle="Scan to join this room as Team A"
                 url={joinTeamAUrl}
-                color="violet"
+                color="teamA"
               />
               <QRCard
                 title="Join Team B"
                 subtitle="Scan to join this room as Team B"
                 url={joinTeamBUrl}
-                color="emerald"
+                color="teamB"
               />
             </div>
           ) : (
@@ -259,7 +257,7 @@ const Room = () => {
                 title="Join Room"
                 subtitle="Scan to join this room"
                 url={joinAnyUrl}
-                color="violet"
+                color="default"
               />
             </div>
           )}
@@ -271,7 +269,7 @@ const Room = () => {
             <button
               onClick={handleStart}
               disabled={matchStarting}
-              className="w-full bg-[#111827] hover:bg-[#1C1A2A] disabled:opacity-60 text-white py-4 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2"
+              className="w-full bg-[#B7FF2A] hover:bg-[#A6F11F] disabled:opacity-60 text-[#13121B] py-4 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2"
             >
               {matchStarting ? (
                 <>

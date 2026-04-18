@@ -1,53 +1,86 @@
 import axios from "axios";
 
 /**
- * IMPROVED PISTON SERVICE (Public Judge0 Edition)
- * Uses the open public instance of Judge0 for true code execution without keys.
+ * PISTON SERVICE — Uses the free Piston API (emkc.org) for real code execution.
+ * Falls back to a local regex simulator when the API is unavailable.
  */
 
-const PUBLIC_JUDGE_URL = "https://ce.judge0.com/submissions?base64_encoded=true&wait=true";
+const PISTON_API_URL = "https://emkc.org/api/v2/piston/execute";
 
-const JUDGE0_LANG_MAP = {
-  javascript: 93, // Node.js 18.15.0
-  python: 71,     // Python 3.8
-  cpp: 54,        // C++ (GCC 9.2.0)
-  java: 62,       // Java (OpenJDK 13.0.1)
-  c: 50,          // C (GCC 9.2.0)
+// Piston uses language name + version strings (not numeric IDs)
+const PISTON_LANG_MAP = {
+  javascript: { language: "javascript", version: "18.15.0" },
+  python:     { language: "python",     version: "3.10.0"  },
+  cpp:        { language: "c++",        version: "10.2.0"  },
+  java:       { language: "java",       version: "15.0.2"  },
+  c:          { language: "c",          version: "10.2.0"  },
 };
 
 /**
- * Execute code with public Judge0 + local fallback logic.
+ * Execute code with the Piston API + local fallback logic.
  */
 export const executeCode = async (sourceCode, language, stdin = "", expectedOutput = "") => {
-  const langId = JUDGE0_LANG_MAP[language];
+  const langConfig = PISTON_LANG_MAP[language] || PISTON_LANG_MAP.javascript;
 
-  // 1. Try Public Judge0 (No Key required)
+  // 1. Try Piston API (free, no key required)
   try {
     const payload = {
-      source_code: Buffer.from(sourceCode).toString("base64"),
-      language_id: langId || 93,
-      stdin: stdin ? Buffer.from(stdin).toString("base64") : null,
-      expected_output: expectedOutput ? Buffer.from(expectedOutput).toString("base64") : null,
+      language: langConfig.language,
+      version: langConfig.version,
+      files: [{ content: sourceCode }],
+      stdin: stdin || "",
     };
 
-    const response = await axios.post(PUBLIC_JUDGE_URL, payload, { timeout: 7000 });
+    const response = await axios.post(PISTON_API_URL, payload, { timeout: 15000 });
     const data = response.data;
 
-    // Decode responses (Judge0 returns base64)
-    const stdout = data.stdout ? Buffer.from(data.stdout, "base64").toString() : "";
-    const stderr = data.stderr ? Buffer.from(data.stderr, "base64").toString() : "";
-    const compile_output = data.compile_output ? Buffer.from(data.compile_output, "base64").toString() : "";
+    const runResult = data.run || {};
+    const compileResult = data.compile || {};
+
+    const stdout = (runResult.stdout || "").toString();
+    const stderr = (runResult.stderr || "").toString();
+    const compile_output = (compileResult.stderr || "").toString();
+
+    // Check for compilation failure
+    if (compileResult.code !== undefined && compileResult.code !== 0 && compileResult.stderr) {
+      return {
+        status: { id: 6, description: "Compilation Error" },
+        stdout: "",
+        stderr: compile_output,
+        compile_output,
+        time: "0",
+        memory: 0,
+      };
+    }
+
+    // Check for runtime error (non-zero exit code)
+    if (runResult.code !== 0 && runResult.code !== undefined) {
+      return {
+        status: { id: 11, description: "Runtime Error" },
+        stdout,
+        stderr: stderr || runResult.signal || "Runtime error",
+        compile_output: "",
+        time: "0",
+        memory: 0,
+      };
+    }
+
+    // Compare output with expected if provided
+    const normalize = (s) => s.trim().replace(/\s+/g, " ");
+    const passed = expectedOutput
+      ? normalize(stdout) === normalize(expectedOutput)
+      : true;
 
     return {
-      status: data.status, // { id: 3, description: "Accepted" }
+      status: { id: passed ? 3 : 4, description: passed ? "Accepted" : "Wrong Answer" },
       stdout,
       stderr,
-      compile_output,
-      time: data.time || "0.1",
-      memory: data.memory || 0,
+      compile_output: "",
+      time: "0.1",
+      memory: 0,
     };
   } catch (err) {
-    console.warn(`[Public Judge] Restricted or failed: ${err.message}. Falling back to simulator...`);
+    console.warn(`[Piston] API failed: ${err.message}. Falling back to simulator...`);
     // 2. Fallback to Local Simulation for common problems
     return simulateExecution(sourceCode, language, stdin, expectedOutput);
   }
