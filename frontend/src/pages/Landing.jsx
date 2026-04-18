@@ -1,23 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Lenis from 'lenis';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { Search, ChevronLeft, ChevronRight, Activity, Terminal, Shield, Code2 } from 'lucide-react';
+import { Code2 } from 'lucide-react';
 import styles from './Landing.module.css';
 
 gsap.registerPlugin(ScrollTrigger);
 
-const roleData = [
-  { id: 'frontend', label: 'FRONTEND', icon: <Code2 size={48} />, bg: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=300&auto=format&fit=crop' },
-  { id: 'backend', label: 'BACKEND', icon: <Terminal size={48} />, bg: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=300&auto=format&fit=crop' },
-  { id: 'fullstack', label: 'FULLSTACK', icon: <Activity size={48} />, bg: 'https://images.unsplash.com/photo-1504639725590-34d0984388bd?q=80&w=300&auto=format&fit=crop' },
-  { id: 'devops', label: 'DEVOPS', icon: <Shield size={48} />, bg: 'https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?q=80&w=300&auto=format&fit=crop' },
-];
-
 export default function Landing() {
   const navigate = useNavigate();
-  const [activeRole, setActiveRole] = useState('frontend');
   
   const containerRef = useRef(null);
   const bgTextRef = useRef(null);
@@ -97,7 +89,19 @@ export default function Landing() {
   }, []);
 
   return (
-    <div className={styles.landingContainer} ref={containerRef}>
+    <div 
+      className={styles.landingContainer} 
+      ref={containerRef}
+      style={{ 
+        backgroundImage: `url('/assets/two.png')`, 
+        backgroundSize: 'cover', 
+        backgroundAttachment: 'fixed', 
+        backgroundPosition: 'center',
+        // Fallback or blend color
+        backgroundColor: '#13121B',
+        backgroundBlendMode: 'overlay'
+      }}
+    >
         
         {/* Background Typography */}
         <div className={styles.giantBackgroundLetters} ref={bgTextRef}>
@@ -150,7 +154,7 @@ export default function Landing() {
                   <div key={idx} className={styles.playerCard}>
                     <div className={styles.cardHeader}>
                       <div className={styles.avatar}>
-                        <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${card+10}`} alt="avatar" />
+                        <img src={`/assets/avatar${card}.png`} alt="avatar" />
                       </div>
                       <div className={styles.playerInfo}>
                         <h4>DevMaster_{card}</h4>
@@ -172,41 +176,7 @@ export default function Landing() {
               </div>
             </div>
 
-            {/* Bottom Controls */}
-            <div className={styles.heroBottom}>
-              <div className={styles.roleSelector}>
-                <h3>YOUR CLASS</h3>
-                <div className={styles.rolesGrid}>
-                  {roleData.map((role) => (
-                    <div 
-                      key={role.id}
-                      className={`${styles.roleCard} ${activeRole === role.id ? styles.active : ''} hero-title-line`}
-                      onClick={() => setActiveRole(role.id)}
-                    >
-                      <img src={role.bg} alt={role.label} />
-                      <span>{role.label}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
 
-              <div className={`${styles.rankWidget} hero-title-line`}>
-                <h3>YOUR RANK</h3>
-                <div className={styles.rankBox}>
-                  <ChevronLeft className={styles.chevron} />
-                  <div className={styles.rankDisplay}>
-                    {/* Placeholder for custom diamond rank icon */}
-                    <div style={{width: 60, height: 60, background: 'linear-gradient(135deg, #A6F11F, #4A4763)', clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)'}}></div>
-                    <span className={styles.rankName}>DIAMOND 1</span>
-                  </div>
-                  <ChevronRight className={styles.chevron} />
-                </div>
-              </div>
-
-              <button className={`${styles.searchBtn} hero-title-line`}>
-                <Search size={24} />
-              </button>
-            </div>
 
           </div>
         </section>
@@ -223,9 +193,24 @@ export default function Landing() {
               </p>
             </div>
             <div>
-              {/* Decorative elements for the right side */}
-              <div style={{width: '100%', height: '400px', border: '1px solid var(--border-dark)', borderRadius: '22px', background: 'var(--surface-panel)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-lime)'}}>
-                [LIVE EDITOR SYNC VISUALIZATION]
+              {/* High-fidelity generated Hero illustration */}
+              <div style={{
+                width: '100%', 
+                height: '400px', 
+                borderRadius: '22px', 
+                overflow: 'hidden', 
+                position: 'relative', 
+                boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+                border: '1px solid rgba(183,255,42,0.2)'
+              }}>
+                <img 
+                  src="/assets/one.png" 
+                  alt="Esports Hacker" 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                  className="hover:scale-105 transition-transform duration-700"
+                />
+                {/* Gradient overlay so it fades into the dark theme gracefully */}
+                <div style={{position: 'absolute', inset: 0, background: 'linear-gradient(to top, #13121B, transparent 50%)'}} />
               </div>
             </div>
           </div>
@@ -233,37 +218,50 @@ export default function Landing() {
 
         {/* Dashboard Showcase */}
         <section className={`${styles.showcaseSection} dash-grid-trigger`}>
-          <div className={styles.featureGrid}>
-             <div className={styles.featureText}>
-              <h2 style={{color: 'var(--text-white)', WebkitTextStroke: '0'}}>CHOOSE YOUR BATTLE</h2>
-            </div>
+          <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
+             <h2 className="hero-title-line" style={{fontFamily: 'var(--font-heading)', fontSize: '3rem', color: 'var(--text-white)'}}>
+               CHOOSE YOUR BATTLE
+             </h2>
           </div>
           
           <div className={styles.grid2x2}>
-            <div className={`${styles.dashCard} dash-card-anim`}>
-              <h3>BATTLE ROYALE</h3>
-              <p>2-8 players. All solve the same problem. First to finish or last remaining player wins.</p>
+            <div className={`${styles.dashCard} dash-card-anim`} style={{ backgroundImage: `url('/assets/card1.png')` }}>
+              <div className={styles.dashCardContent}>
+                <h3>BATTLE ROYALE</h3>
+                <p>2-8 players. All solve the same problem. First to finish or last remaining player wins.</p>
+              </div>
             </div>
-            <div className={`${styles.dashCard} dash-card-anim`}>
-              <h3>TEAM DUEL</h3>
-              <p>2v2 / 3v3 action. Collaborate in a shared editor to solve algorithm challenges together.</p>
+            <div className={`${styles.dashCard} dash-card-anim`} style={{ backgroundImage: `url('/assets/card2.png')` }}>
+              <div className={styles.dashCardContent}>
+                <h3>TEAM DUEL</h3>
+                <p>2v2 / 3v3 action. Collaborate in a shared editor to solve algorithm challenges together.</p>
+              </div>
             </div>
-            <div className={`${styles.dashCard} dash-card-anim`}>
-              <h3>KNOCKOUT TOURNAMENT</h3>
-              <p>Bracket-style 1v1 rounds. Winners advance to the finals dynamically.</p>
+            <div className={`${styles.dashCard} dash-card-anim`} style={{ backgroundImage: `url('/assets/card3.png')` }}>
+              <div className={styles.dashCardContent}>
+                <h3>KNOCKOUT TOURNAMENT</h3>
+                <p>Bracket-style 1v1 rounds. Winners advance to the finals dynamically.</p>
+              </div>
             </div>
-            <div className={`${styles.dashCard} dash-card-anim`}>
-              <h3>SPECTATOR MODE</h3>
-              <p>Join as a viewer. Watch live matches, track submissions and see the timeline unfold.</p>
+            <div className={`${styles.dashCard} dash-card-anim`} style={{ backgroundImage: `url('/assets/card4.png')` }}>
+              <div className={styles.dashCardContent}>
+                <h3>SPECTATOR MODE</h3>
+                <p>Join as a viewer. Watch live matches, track submissions and see the timeline unfold.</p>
+              </div>
             </div>
           </div>
         </section>
 
         {/* Footer CTA */}
         <section className={styles.ctaSection}>
-          <div className={styles.ctaBanner}>
-            <h2>JOIN US AND START COMPETING TOGETHER</h2>
-            <button className={styles.bannerBtn} onClick={() => navigate('/register')}>ENTER ARENA</button>
+          <div className={styles.ctaBanner} style={{ backgroundImage: `url('/assets/three.png')`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+            {/* Overlay to ensure text readability */}
+            <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(183, 255, 42, 0.85)', backdropFilter: 'blur(2px)', zIndex: 1 }} />
+            
+            <div style={{ position: 'relative', zIndex: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+              <h2 style={{ maxWidth: '600px', lineHeight: 1.1 }}>JOIN US AND START COMPETING TOGETHER</h2>
+              <button className={styles.bannerBtn} onClick={() => navigate('/register')}>ENTER ARENA</button>
+            </div>
           </div>
         </section>
 
