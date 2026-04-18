@@ -134,11 +134,11 @@ const generateAccessAndRefereshTokens = async (userId) => {
   }
 };
 
-// Cookie options — httpOnly prevents JS access, secure only in production
+// Cookie options — cross-site auth from Vercel to Render requires SameSite=None and Secure=true in production
 const cookieOptions = {
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
-  sameSite: "lax",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
 };
 
 // POST /auth/register
