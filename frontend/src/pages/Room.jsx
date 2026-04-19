@@ -14,7 +14,7 @@ const generateQR = async (text) => {
     return await QRCode.toDataURL(text, {
       width: 180,
       margin: 2,
-      color: { dark: "#B7FF2A", light: "#13121B" },
+      color: { dark: "#FFFFFF", light: "#13121B" },
     });
   } catch {
     return null;

@@ -81,8 +81,8 @@ const Setup2FA = () => {
         ) : qrData ? (
           <div className="space-y-6">
             {/* QR Code */}
-            <div className="bg-white rounded-xl p-4 flex justify-center">
-              <img src={qrData.qrCode} alt="2FA QR Code" className="w-48 h-48" />
+            <div className="rounded-xl p-4 flex justify-center border border-[#302E46] bg-[#1C1A2A]">
+              <img src={qrData.qrCode} alt="2FA QR Code" className="w-48 h-48 rounded-lg shadow-2xl" />
             </div>
 
             {/* Manual secret */}

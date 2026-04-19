@@ -2,8 +2,10 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useRoom } from "../context/RoomContext";
 import { useSocket } from "../context/SocketContext";
-import { Search, Loader2, Code2, Users, Lock, ChevronRight } from "lucide-react";
+import { Search, Loader2, Code2, Users, Lock, ChevronRight, Terminal } from "lucide-react";
 import toast from "react-hot-toast";
+import Button from "../components/UI/Button";
+import KryptLogo from "../components/UI/KryptLogo";
 
 const MODES = {
   BLITZ_1V1:      { label: "BLITZ 1V1",   sub: "Solo · 2 Players · 15 min", isTeam: false },
@@ -173,37 +175,44 @@ const Lobby = () => {
                   </p>
                 </div>
 
-                <button
-                  onClick={handleSearchToggle}
-                  disabled={!connected}
-                  className={`relative group w-72 h-72 rounded-[34px] flex flex-col items-center justify-center transition-all duration-500 overflow-hidden active:scale-[0.98] border ${
-                    searching
-                      ? "bg-transparent border-[#B7FF2A] shadow-[0_0_60px_rgba(183,255,42,0.2)]"
-                      : "bg-[#B7FF2A] border-[#B7FF2A] hover:scale-105 shadow-[0_0_40px_rgba(183,255,42,0.3)] hover:shadow-[0_0_80px_rgba(183,255,42,0.5)]"
-                  }`}
-                >
+                <div className="relative w-full max-w-md">
+                  <Button
+                    variant="primary"
+                    onClick={handleSearchToggle}
+                    loading={searching}
+                    className={`h-24 w-full text-3xl tracking-[0.4em] !clip-valorant-premium transition-all duration-300 ${
+                      searching ? "brightness-110" : "hover:scale-[1.02]"
+                    }`}
+                  >
+                    {searching ? (
+                      <div className="flex flex-col items-center">
+                        <span className="text-sm font-bold opacity-70 mb-1">CANCEL SEARCH</span>
+                        <span className="animate-glitch">QUEUING...</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-5">
+                        <KryptLogo size={40} className="drop-shadow-[0_0_8px_rgba(183,255,42,0.3)]" />
+                        <span>START MATCH</span>
+                      </div>
+                    )}
+                  </Button>
+                  
+                  {/* Tactical Border Highlights (The HUD "Corners") */}
+                  <div className="absolute -top-4 -left-4 w-4 h-4 border-t-2 border-l-2 border-[#B7FF2A]/30" />
+                  <div className="absolute -bottom-4 -right-4 w-4 h-4 border-b-2 border-r-2 border-[#B7FF2A]/30" />
+                  
                   {searching && (
-                    <div className="absolute inset-0 z-0">
-                      <div className="absolute inset-0 rounded-[34px] border border-[#B7FF2A]/50 animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite]" />
-                      <div className="absolute inset-0 rounded-[34px] border border-[#B7FF2A]/30 animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite_0.5s]" />
+                    <div className="mt-12 flex flex-col items-center gap-3">
+                      <div className="w-full h-1.5 bg-[#1b1a29] relative overflow-hidden clip-valorant-edge">
+                        <div className="absolute inset-y-0 left-0 bg-[#B7FF2A] w-1/4 animate-[loading_1.5s_infinite_ease-in-out]" />
+                      </div>
+                      <div className="flex justify-between w-full px-1">
+                        <p className="text-[9px] text-[#B7FF2A]/40 font-black tracking-widest uppercase">matchmaking: active</p>
+                        <p className="text-[9px] text-[#B7FF2A]/40 font-black tracking-widest uppercase animate-pulse">pinging servers...</p>
+                      </div>
                     </div>
                   )}
-                  <div className="relative z-10 flex flex-col items-center">
-                    {searching ? (
-                      <>
-                        <Loader2 size={48} className="text-[#B7FF2A] animate-spin mb-4" />
-                        <span className="text-[#B7FF2A] font-black tracking-[0.18em] text-lg uppercase">searching</span>
-                        <span className="text-xs text-[#B7FF2A]/70 font-semibold mt-2">Click to Cancel</span>
-                      </>
-                    ) : (
-                      <>
-                        <Search size={48} className="text-[#13121B] mb-2 scale-100 group-hover:scale-110 transition-transform duration-300" strokeWidth={2.8} />
-                        <span className="text-[#13121B] font-black tracking-[0.2em] text-2xl mt-2 uppercase">start</span>
-                        <span className="text-[#13121B] font-black tracking-[0.2em] text-2xl uppercase">match</span>
-                      </>
-                    )}
-                  </div>
-                </button>
+                </div>
               </div>
             )}
 
@@ -235,9 +244,9 @@ const Lobby = () => {
                     </div>
                     <button
                       onClick={() => setIsPrivate(!isPrivate)}
-                      className={`w-14 h-7 rounded-full transition-colors relative shrink-0 ${isPrivate ? "bg-[#B7FF2A]" : "bg-[#302E46]"}`}
+                      className={`w-14 h-7 rounded-full transition-all duration-300 relative shrink-0 shadow-inner ${isPrivate ? "bg-[#B7FF2A] shadow-[0_0_15px_rgba(183,255,42,0.3)]" : "bg-[#302E46]"}`}
                     >
-                      <span className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-transform ${isPrivate ? "translate-x-8" : "translate-x-1"}`} />
+                      <span className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300 ${isPrivate ? "translate-x-7" : "translate-x-0"}`} />
                     </button>
                   </div>
                 </div>

@@ -19,7 +19,12 @@ export const setup2FA = asyncHandler(async (req, res) => {
   user.twoFactorSecret = secret.base32;
   await user.save({ validateBeforeSave: false });
 
-  const qrCodeDataURL = await qrcode.toDataURL(secret.otpauth_url);
+  const qrCodeDataURL = await qrcode.toDataURL(secret.otpauth_url, {
+    color: {
+      dark: "#FFFFFF",
+      light: "#13121B"
+    }
+  });
 
   return res
     .status(200)

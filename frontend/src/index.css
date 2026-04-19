@@ -29,3 +29,67 @@ body {
   background-attachment: fixed;
   font-variant-numeric: tabular-nums;
 }
+
+@layer utilities {
+  /* Asymmetrical Premium Valorant Clip */
+  .clip-valorant-premium {
+    clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%);
+  }
+
+  /* Standard Tactical Clip (disproportionate) */
+  .clip-valorant-edge {
+    clip-path: polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 15px 100%, 0 calc(100% - 15px));
+  }
+
+  .skew-valorant {
+    transform: skew(-15deg);
+  }
+
+  @keyframes slide-in {
+    0% { transform: translateX(-100%) skew(-15deg); }
+    100% { transform: translateX(0) skew(-15deg); }
+  }
+
+  @keyframes flicker {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+  }
+
+  .animate-slide-valorant {
+    animation: slide-in 0.3s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  }
+
+  @keyframes glitch {
+    0% { transform: translate(0); }
+    20% { transform: translate(-2px, 2px); }
+    40% { transform: translate(-2px, -2px); }
+    60% { transform: translate(2px, 2px); }
+    80% { transform: translate(2px, -2px); }
+    100% { transform: translate(0); }
+  }
+
+  @keyframes loading {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(300%); }
+  }
+
+  .animate-glitch {
+    animation: glitch 0.3s cubic-bezier(.25,.46,.45,.94) both infinite;
+  }
+
+  /* Tactical Background Patterns (Enhanced Visibility) */
+  .bg-tactical-mesh {
+    background-image: repeating-linear-gradient(
+      45deg,
+      rgba(0, 0, 0, 0.08) 0px,
+      rgba(0, 0, 0, 0.08) 2px,
+      transparent 2px,
+      transparent 12px
+    );
+  }
+
+  .bg-micro-dots {
+    background-image: radial-gradient(rgba(0, 0, 0, 0.15) 1.5px, transparent 1.5px);
+    background-size: 10px 10px;
+  }
+}
